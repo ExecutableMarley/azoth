@@ -63,6 +63,13 @@ struct MemoryRegion
     }
 
     /**
+     * @brief Check whether the Region represents a valid mapping.
+     *
+     * @return True if baseAddress is non-zero and size is non-zero.
+     */
+	bool valid() const noexcept { return baseAddress != 0 && regionSize != 0; }
+
+    /**
      * @brief Check whether the region allows read access.
      */
     bool read() const
@@ -85,6 +92,25 @@ struct MemoryRegion
     {
         return (this->protection & EMemoryProtection::Execute) != EMemoryProtection::None;
     }
+
+    /**
+     * @brief Check whether the memory region is committed.
+     * 
+     * A committed region is backed by physical storage and can potentially
+     * be accessed, subject to its protection flags.
+     */
+    bool committed() const
+    {
+        return this->state == EMemoryState::Committed;
+    }
+
+    /**
+     * @brief Convert the memory region to its corresponding memory range.
+     *
+     * The returned range uses half-open interval semantics:
+     * [baseAddress, baseAddress + regionSize).
+     */
+	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + regionSize); };
 };
 
 
