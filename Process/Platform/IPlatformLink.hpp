@@ -31,36 +31,36 @@ public:
 
 	//=== Process Specific ===//
 
-	virtual bool isAlive()   { return false; }
-	virtual bool terminate() { return false; }
-	virtual bool suspend()   { return false; }
-	virtual bool resume()    { return false; }
-	virtual uint32_t getExitCode() { return 0; }
+	virtual bool isAlive() const { return false; }
+	virtual bool terminate()     { return false; }
+	virtual bool suspend()       { return false; }
+	virtual bool resume()        { return false; }
+	virtual uint32_t getExitCode() const { return 0; }
 
 	//=== Process Images ===//
 
-	virtual ProcessImage getMainProcessImage() { return ProcessImage(); };
-	virtual ProcessImage getProcessImage(const std::string& name) { return ProcessImage(); };
-	virtual std::vector<ProcessImage> getAllProcessImages() { return {}; }
+	virtual ProcessImage getMainProcessImage() const { return ProcessImage(); };
+	virtual ProcessImage getProcessImage(const std::string& name) const { return ProcessImage(); };
+	virtual std::vector<ProcessImage> getAllProcessImages() const { return {}; }
 
 	//=== Process Query ===//
 
-	virtual uint32_t getProcessIDByName(const std::string& name) = 0;
-	virtual std::vector<uint32_t> getProcessIDsByName(const std::string& name) = 0;
-	virtual uint32_t getProcessIDByWindowName(const std::string& windowTitle) = 0;
-	virtual std::vector<uint32_t> getProcessIDsByWindowName(const std::string& windowTitle) = 0;
+	virtual uint32_t getProcessIDByName(const std::string& name) const = 0;
+	virtual std::vector<uint32_t> getProcessIDsByName(const std::string& name) const = 0;
+	virtual uint32_t getProcessIDByWindowName(const std::string& windowTitle) const = 0;
+	virtual std::vector<uint32_t> getProcessIDsByWindowName(const std::string& windowTitle) const = 0;
 
-	virtual bool getProcessName(uint32_t procID, std::string& name) { return false; }
-	virtual bool getProcessPath(uint32_t procID, std::string& path) { return false; }
-	virtual EProcessArchitecture getProcessArchitecture(uint32_t procID)     { return EProcessArchitecture::Unknown; }
-	virtual EProcessPrivilegeLevel getProcessPrivilegeLevel(uint32_t procID) { return EProcessPrivilegeLevel::Unknown; }
+	virtual bool getProcessName(uint32_t procID, std::string& name) const { return false; }
+	virtual bool getProcessPath(uint32_t procID, std::string& path) const { return false; }
+	virtual EProcessArchitecture getProcessArchitecture(uint32_t procID)     const { return EProcessArchitecture::Unknown; }
+	virtual EProcessPrivilegeLevel getProcessPrivilegeLevel(uint32_t procID) const { return EProcessPrivilegeLevel::Unknown; }
 
 	//=== Memory ===//
 
-	virtual bool read(uint64_t addr, size_t size, void* buffer)  { return false; }
+	virtual bool read(uint64_t addr, size_t size, void* buffer) const { return false; }
 	virtual bool write(uint64_t addr, size_t size, const void* buffer) { return false; }
 
-	virtual bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) { return false; }
+	virtual bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const { return false; }
 
 	virtual bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) { return false; }
 	
