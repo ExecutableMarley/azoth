@@ -19,7 +19,9 @@ struct DecoderConfig
 
 struct DecodedInstruction
 {
-
+	ZydisDecodedInstruction instr{}; //328 bytes
+	ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT]{}; //80 Bytes * 10
+	uint64_t runtimeAddress = 0;
 };
 
 class InstructionRangeIterator
@@ -33,8 +35,12 @@ class CDecoderModule
 public:
     CDecoderModule(CProcess* backPtr);
 
+public:
+	CDecoderModule(const CDecoderModule&) = delete;
 
+    CDecoderModule& operator=(const CDecoderModule&) = delete;
 
+public:
     bool decodeAt(const uint8_t* buffer, size_t size, DecodedInstruction& d, uint64_t runtimeAddr);
 
     DecodedInstruction decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr);
@@ -86,9 +92,9 @@ public:
     InstructionRangeIterator createIterator(const uint8_t* buffer, size_t size, uint64_t baseAddr) const;
 
 private:
-	CProcess*      _backPtr;
-	ZydisDecoder   _decoder;
-	ZydisFormatter _formatter;
+	CProcess*      _backPtr; 
+	ZydisDecoder   _decoder;   //20 Bytes
+	ZydisFormatter _formatter; //600 Bytes
 };
 
 

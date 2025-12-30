@@ -35,6 +35,10 @@ public:
 	{
 
 	}
+
+     CMemoryModule(const CMemoryModule&) = delete;
+
+     CMemoryModule& operator=(const CMemoryModule&) = delete;
 public:
 
 	//=== Read Memory ===//
@@ -124,6 +128,16 @@ public:
 			return {};
 		buffer[maxSize] = 0;
 		return std::string(buffer.data());
+	}
+
+	std::string readString(uint64_t addr, std::vector<uint64_t> offsets, size_t size = 256)
+	{
+		for (uint64_t offset : offsets)
+		{
+			this->read(addr, sizeof(uint64_t), &addr);
+			addr += offset;
+		}
+		return this->readString(addr, size);
 	}
 
 	//=== Write Memory ===//

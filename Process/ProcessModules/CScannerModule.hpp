@@ -20,6 +20,12 @@ class CScannerModule
 public:
 	CScannerModule(CProcess* backPtr);
 
+public:
+	CScannerModule(const CScannerModule&) = delete;
+
+    CScannerModule& operator=(const CScannerModule&) = delete;
+
+public:
 	//--------------------------------------------------------
 	// 
 	//--------------------------------------------------------
