@@ -17,7 +17,7 @@ namespace Azoth
  * a mapped binary image (e.g. executable or shared object), along with
  * its identifying metadata.
  *
- * This class is purely descriptive and does not imply ownership or lifetime
+ * @note This class is purely descriptive and does not imply ownership or lifetime
  * management of the underlying memory.
  */
 class ProcessImage
@@ -70,8 +70,9 @@ public:
 
 	/**
      * @brief Convert the image to its corresponding memory range.
-     *
-     * @return MemoryRange covering the entire image mapping.
+	 * 
+ 	 * The returned range uses half-open interval semantics:
+ 	 * [baseAddress, baseAddress + size).
      */
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + size); };
 };

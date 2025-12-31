@@ -15,8 +15,6 @@ class CMemoryModule;
 
 typedef unsigned char BYTE;
 
-//Todo: Adjust comments (Currently copy pasted from old version)
-
 /**
  * @brief Cached copy of a contiguous remote memory region.
  * 
