@@ -72,6 +72,15 @@ public:
 	const std::string& GetPath() const { return _path; }
 	EProcessArchitecture GetArchitecture()     const { return _architecture; }
 	EProcessPrivilegeLevel GetPrivilegeLevel() const { return _privilegeLevel; }
+private:
+	void retrieveProcessData()
+	{
+		_platformLink->getProcessName(_processID, _name);
+		_platformLink->getProcessPath(_processID, _path);
+		_platformLink->getProcessArchitecture(_processID, _architecture);
+		_platformLink->getProcessPrivilegeLevel(_processID, _privilegeLevel);
+	}
+public:
 
 	//Process flow
 	

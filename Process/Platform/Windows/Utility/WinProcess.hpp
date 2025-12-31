@@ -4,6 +4,13 @@
 #include <stdint.h>
 #include <vector>
 
+#include "../../../Types/EProcessArchitecture.hpp"
+#include "../../../Types/EProcessPrivilegeLevel.hpp"
+
+#undef UNICODE
+#undef _UNICODE
+#include <windows.h>
+
 namespace Azoth
 {
 
@@ -26,5 +33,15 @@ bool retrieveProcessMainImage(uint32_t pid, ProcessImage& procImage);
 bool retrieveProcessImage(uint32_t pid, const std::string& imageName, ProcessImage& procImage);
 
 bool retrieveAllProcessImages(uint32_t pid, std::vector<ProcessImage>& procImages);
+
+//
+
+bool retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel& outLevel);
+
+bool retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch);
+
+bool retrieveProcessName(HANDLE processHandle, std::string& outProcessName);
+
+bool retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath);
 
 }

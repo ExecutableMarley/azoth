@@ -52,8 +52,8 @@ public:
 
 	virtual bool getProcessName(uint32_t procID, std::string& name) const { return false; }
 	virtual bool getProcessPath(uint32_t procID, std::string& path) const { return false; }
-	virtual EProcessArchitecture getProcessArchitecture(uint32_t procID)     const { return EProcessArchitecture::Unknown; }
-	virtual EProcessPrivilegeLevel getProcessPrivilegeLevel(uint32_t procID) const { return EProcessPrivilegeLevel::Unknown; }
+	virtual bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture)   const { return false; }
+	virtual bool getProcessPrivilegeLevel(uint32_t procID, EProcessPrivilegeLevel& privileges) const { return false; }
 
 	//=== Memory ===//
 

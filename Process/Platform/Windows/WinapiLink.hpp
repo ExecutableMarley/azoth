@@ -1,7 +1,9 @@
 #pragma once
 
-#include "Utility/WinTypes.hpp"
 #include "../IPlatformLink.hpp"
+
+#include "Utility/WinTypes.hpp"
+#include "Utility/WinProcess.hpp"
 
 #undef UNICODE
 #undef _UNICODE
@@ -185,12 +187,34 @@ public:
 
 	uint32_t getProcessIDByWindowName(const std::string& windowTitle) const override
 	{
-		return 0;
+		uint32_t procID;
+		retrieveProcessIDByWindowName(windowTitle, procID);
+		return procID;
 	}
 
 	std::vector<uint32_t> getProcessIDsByWindowName(const std::string& windowTitle) const override
 	{
 		return {};
+	}
+
+	bool getProcessName(uint32_t procID, std::string& name) const override
+	{
+		return retrieveProcessName(_hProcess, name);
+	}
+
+	bool getProcessPath(uint32_t procID, std::string& path) const override
+	{
+		return retrieveProcessPath(_hProcess, path);
+	}
+
+	bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture) const override
+	{
+		return retrieveProcessArchitecture(_hProcess, architecture);
+	}
+
+	bool getProcessPrivilegeLevel(uint32_t procID, EProcessPrivilegeLevel& privileges) const override
+	{
+		return retrieveProcessPrivilegeLevel(_hProcess, privileges);
 	}
 
 	//=== Memory ===//

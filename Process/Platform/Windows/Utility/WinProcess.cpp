@@ -245,6 +245,136 @@ bool retrieveProcessIDByWindowName(const std::string& windowName, std::uint32_t&
 	return true;
 }
 
+//
+
+bool retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel& outLevel)
+{
+    outLevel = EProcessPrivilegeLevel::Unknown;
+
+    if (!processHandle)
+        return false;
+
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(processHandle, TOKEN_QUERY, &token))
+        return false;
+
+    TOKEN_ELEVATION elevation{};
+    DWORD size = 0;
+
+	// Check for user elevation
+    if (GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size))
+    {
+        outLevel = elevation.TokenIsElevated
+            ? EProcessPrivilegeLevel::ElevatedUser
+            : EProcessPrivilegeLevel::StandardUser;
+    }
+
+    // Check for SYSTEM explicitly
+    SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
+    PSID systemSid = nullptr;
+
+    if (AllocateAndInitializeSid(
+            &ntAuthority,
+            1,
+            SECURITY_LOCAL_SYSTEM_RID,
+            0,0,0,0,0,0,0,
+            &systemSid))
+    {
+        BOOL isSystem = FALSE;
+        if (CheckTokenMembership(token, systemSid, &isSystem) && isSystem)
+            outLevel = EProcessPrivilegeLevel::System;
+
+        FreeSid(systemSid);
+    }
+
+    CloseHandle(token);
+    return outLevel != EProcessPrivilegeLevel::Unknown;
+}
+
+bool retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch)
+{
+    outArch = EProcessArchitecture::Unknown;
+
+    if (!processHandle)
+        return false;
+
+    // Attempt IsWow64Process2 (Win10+)
+    static auto pIsWow64Process2 =
+        reinterpret_cast<decltype(&IsWow64Process2)>(
+            GetProcAddress(GetModuleHandleA("kernel32.dll"), "IsWow64Process2"));
+
+    if (pIsWow64Process2)
+    {
+        USHORT processMachine = IMAGE_FILE_MACHINE_UNKNOWN;
+        USHORT nativeMachine  = IMAGE_FILE_MACHINE_UNKNOWN;
+
+        if (pIsWow64Process2(processHandle, &processMachine, &nativeMachine))
+        {
+            USHORT machine = (processMachine != IMAGE_FILE_MACHINE_UNKNOWN)
+                                 ? processMachine
+                                 : nativeMachine;
+
+            switch (machine)
+            {
+            case IMAGE_FILE_MACHINE_I386:  outArch = EProcessArchitecture::x86;   break;
+            case IMAGE_FILE_MACHINE_AMD64: outArch = EProcessArchitecture::x64;   break;
+            case IMAGE_FILE_MACHINE_ARM:   outArch = EProcessArchitecture::ARM32; break;
+            case IMAGE_FILE_MACHINE_ARM64: outArch = EProcessArchitecture::ARM64; break;
+            default: break;
+            }
+
+            return outArch != EProcessArchitecture::Unknown;
+        }
+    }
+
+    // Fallback: IsWow64Process
+    BOOL isWow64 = FALSE;
+    if (!IsWow64Process(processHandle, &isWow64))
+        return false;
+
+#if defined(_WIN64)
+    outArch = isWow64 ? EProcessArchitecture::x86 : EProcessArchitecture::x64;
+#else
+    outArch = EProcessArchitecture::x86;
+#endif
+
+    return true;
+}
+
+bool retrieveProcessName(HANDLE processHandle, std::string& outProcessName)
+{
+    outProcessName.clear();
+
+    if (!processHandle)
+        return false;
+
+    char buffer[MAX_PATH];
+    DWORD size = MAX_PATH;
+
+    if (!QueryFullProcessImageNameA(processHandle, 0, buffer, &size))
+        return false;
+
+    const char* name = strrchr(buffer, '\\');
+    outProcessName = name ? name + 1 : buffer;
+    return true;
+}
+
+bool retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath)
+{
+    outProcessPath.clear();
+
+    if (!processHandle)
+        return false;
+
+    char buffer[MAX_PATH];
+    DWORD size = MAX_PATH;
+
+    if (!QueryFullProcessImageNameA(processHandle, 0, buffer, &size))
+        return false;
+
+    outProcessPath.assign(buffer, size);
+    return true;
+}
 
 
 }
