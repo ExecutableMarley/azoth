@@ -12,12 +12,12 @@
 #include "../Core/MemoryRegion.hpp"
 #include "../Platform/IPlatformLink.hpp"
 
-class CProcess;
 
 namespace Azoth
 {
 
 
+class CProcess;
 /**
  * @brief Platform-independent interface for remote process memory manipulation.
  *

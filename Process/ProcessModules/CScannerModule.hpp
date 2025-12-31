@@ -8,12 +8,13 @@
 #include "../Core/MemoryRegion.hpp"
 #include "../Core/MemoryCopy.hpp"
 
-class CProcess;
-class CMemoryModule;
 
 namespace Azoth
 {
 
+
+class CProcess;
+class CMemoryModule;
 
 class CScannerModule
 {

@@ -6,11 +6,12 @@
 #include <vector>
 #include <optional>
 
-class CProcess;
 
 namespace Azoth
 {
 
+
+class CProcess;
 
 struct DecoderConfig
 {
