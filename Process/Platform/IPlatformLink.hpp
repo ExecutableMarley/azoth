@@ -86,23 +86,46 @@ public:
 
 	//=== Error Handling ===//
 
-	/*
-	None,
-	Not implemented
-	Access Denied
-
-	OS Specific error
-	*/
-	//Todo: Implement error code system
 	enum class EPlatformError : uint32_t
 	{
     	Success = 0,
     	NotImplemented,    // 
     	NotSupported,      // The OS physically cannot do this
-    	AccessDenied,      // Permission issue
-    	InternalError,     // OS-specific error occurred
-    	InvalidArgument    // Bad arguments passed
+    	InvalidArgument,   // Bad arguments passed
+		AccessDenied,      // Permission issue
+    	InternalError      // OS-specific error occurred
 	};
+
+	struct PlatformErrorState
+	{
+		EPlatformError platformError = EPlatformError::Success;
+		uint64_t       osError       = 0;
+	};
+protected:
+	bool setError(EPlatformError platformError, uint64_t osError = 0)
+	{
+		_lastError.platformError = platformError;
+		_lastError.osError       = osError;
+		return false;
+	}
+private:
+	static thread_local PlatformErrorState _lastError;
+public:
+	/**
+ 	* @brief Returns detailed information about the last error that occurred
+ 	*        in the calling thread.
+	*
+ 	* This function returns the error state associated with the most recent
+ 	* platform link operation executed on the current thread that failed.
+	*
+	* @note The returned value is only meaningful if the immediately preceding
+ 	*       operation returned `false`. On successful calls, the error state is
+ 	*       not modified and should be considered undefined.
+	*/
+	PlatformErrorState getLastError() const
+	{
+		return _lastError;
+	}
 };
 
 
