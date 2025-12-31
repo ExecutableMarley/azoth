@@ -19,7 +19,7 @@ uint64_t CScannerModule::findPatternEx(uint64_t start, uint64_t stop, const Patt
 	size_t bufferSize = 0x1000;
     size_t patternSize = pattern.size();
 
-    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter);
+    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter.requireRead());
     for (const auto& region : regions)
     {
         if (region.regionSize > bufferSize)
@@ -27,6 +27,9 @@ uint64_t CScannerModule::findPatternEx(uint64_t start, uint64_t stop, const Patt
             buffer = std::make_unique<BYTE[]>(region.regionSize);
             bufferSize = region.regionSize;
         }
+
+        if (!region.read())
+            continue;
 
         if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
             continue;
@@ -82,7 +85,7 @@ std::vector<uint64_t> CScannerModule::findAllPatternEx(uint64_t start, uint64_t 
 
     std::vector<uint64_t> results;
 
-    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter);
+    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter.requireRead());
     for (const auto& region : regions)
     {
         if (region.regionSize > bufferSize)
@@ -90,6 +93,9 @@ std::vector<uint64_t> CScannerModule::findAllPatternEx(uint64_t start, uint64_t 
             buffer = std::make_unique<BYTE[]>(region.regionSize);
             bufferSize = region.regionSize;
         }
+
+        if (!region.read())
+            continue;
 
         if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
             continue;
@@ -248,7 +254,7 @@ uint64_t CScannerModule::findNextValue(uint64_t start, uint64_t stop, BYTE* valu
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
 
-    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter);
+    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter.requireRead());
     for (const auto& region : regions)
     {
         if (region.regionSize > bufferSize)
@@ -257,7 +263,6 @@ uint64_t CScannerModule::findNextValue(uint64_t start, uint64_t stop, BYTE* valu
             bufferSize = region.regionSize;
         }
 
-        //Todo: Use filter in getAllMemoryRegions instead
         if (!region.read())
             continue;
 
@@ -306,7 +311,7 @@ std::vector<uint64_t> CScannerModule::findAllValues(uint64_t start, uint64_t sto
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
 
-    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter);
+    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter.requireRead());
     for (const auto& region : regions)
     {
         if (region.regionSize > bufferSize)
@@ -315,7 +320,6 @@ std::vector<uint64_t> CScannerModule::findAllValues(uint64_t start, uint64_t sto
             bufferSize = region.regionSize;
         }
 
-        //Todo: Use filter in getAllMemoryRegions instead
         if (!region.read())
             continue;
 
