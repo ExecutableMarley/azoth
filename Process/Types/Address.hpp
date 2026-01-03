@@ -82,6 +82,30 @@ public:
     constexpr Address& operator-=(value_type offset) noexcept       { value -= offset; return *this; }
 
     constexpr value_type operator-(const Address& other) const noexcept { return value - other.value; }
+
+    // --- Static Helpers ---
+
+    template <typename T>
+    static inline T* alignDown(T* ptr, std::size_t align) noexcept
+    {
+        std::uintptr_t addr = reinterpret_cast<std::uintptr_t>(ptr);
+        std::uintptr_t aligned_addr = (addr & ~(align -1));
+        return reinterpret_cast<T*>(aligned_addr);
+    }
+
+    template <typename T>
+    static inline T* alignUp(T* ptr, std::size_t align) noexcept
+    {
+        std::uintptr_t addr = reinterpret_cast<std::uintptr_t>(ptr);
+        std::uintptr_t aligned_addr = ((addr + align - 1) & ~(align - 1));
+        return reinterpret_cast<T*>(aligned_addr);
+    }
+
+    template <typename T>
+    static inline bool isAligned(T* ptr, std::size_t align) noexcept
+    {
+        return (reinterpret_cast<std::uintptr_t>(ptr) & (align - 1)) == 0;
+    }
 };
 
 
