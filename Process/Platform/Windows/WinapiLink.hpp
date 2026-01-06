@@ -9,6 +9,7 @@
 #undef _UNICODE
 #include <windows.h>
 #include <tlhelp32.h>
+#include <ntstatus.h>
 
 #include <exception>
 
@@ -73,6 +74,54 @@ public:
 	bool isAlive() const override
 	{
 		return this->getExitCode() == STILL_ACTIVE;
+	}
+
+	bool terminate()
+	{
+		DWORD exitCode = 1;
+		return TerminateProcess(this->_hProcess, exitCode);
+	}
+
+	bool suspend()
+	{
+		typedef NTSTATUS( NTAPI* fnNtSuspendProcess )(HANDLE ProcessHandle);
+		static fnNtSuspendProcess suspendProcess = nullptr;
+
+		if (!suspendProcess) 
+		{
+    		auto hNtdll = GetModuleHandleW(L"ntdll.dll");
+    		if (!hNtdll)
+        		return false;
+			
+			suspendProcess = reinterpret_cast<fnNtSuspendProcess>(GetProcAddress(hNtdll, "NtSuspendProcess"));
+		}
+		if (!suspendProcess)
+        	return false;
+		
+		auto status = suspendProcess(this->_hProcess);
+
+		return STATUS_SUCCESS == status;
+	}
+
+	bool resume()
+	{
+		typedef NTSTATUS( NTAPI* fnNtResumeProcess )(HANDLE ProcessHandle);
+		static fnNtResumeProcess resumeProcess = nullptr;
+
+		if (!resumeProcess)
+		{
+        	auto hNtdll = GetModuleHandleW(L"ntdll.dll");
+        	if (!hNtdll)
+            	return false;
+
+        	resumeProcess = reinterpret_cast<fnNtResumeProcess>(GetProcAddress(hNtdll, "NtResumeProcess"));
+    	}
+		if (!resumeProcess)
+            	return false;
+
+		auto status = resumeProcess(this->_hProcess);
+
+		return STATUS_SUCCESS == status;
 	}
 
 	uint32_t getExitCode() const override
