@@ -16,6 +16,14 @@ namespace Azoth
 class CProcess;
 class CMemoryModule;
 
+
+/**
+ * @class CScannerModule
+ * @brief Provides memory scanning and pattern search utilities over a process address space.
+ *
+ * This module specializes in iterating over memory ranges of a target process and locating
+ * specific byte patterns, values, strings, or structural signatures.
+ */
 class CScannerModule
 {
 public:
@@ -28,9 +36,14 @@ public:
 
 public:
 	//--------------------------------------------------------
-	// 
+	// Pattern scanning
 	//--------------------------------------------------------
 
+	/**
+	 * @brief Finds the first occurrence of a byte pattern within a memory range.
+	 *
+	 * @return Address of the first match, or 0 if none was found.
+	 */
 	uint64_t findPatternEx(uint64_t start, uint64_t stop, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	uint64_t findPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
@@ -39,6 +52,11 @@ public:
 
 	uint64_t findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
+	/**
+	 * @brief Finds all occurrences of a byte pattern within a memory range.
+	 *
+	 * @return A list of absolute addresses where the pattern was found.
+	 */
 	std::vector<uint64_t> findAllPatternEx(uint64_t start, uint64_t stop, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	std::vector<uint64_t> findAllPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
@@ -48,9 +66,25 @@ public:
 	std::vector<uint64_t> findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	//--------------------------------------------------------
-	// 
+	// Signature-based scanning
 	//--------------------------------------------------------
 
+
+	/**
+	 * @brief Performs a signature scan and resolves a derived address.
+	 *
+	 * This function extends pattern scanning by applying additional logic
+	 * (e.g. instruction decoding or operand resolution) to compute a final address.
+	 *
+	 * Typical use cases include locating RIP-relative addresses, call/jump targets,
+	 * or embedded pointers inside instruction streams.
+	 *
+	 * @param type           1 for Operand resolution, 2 for relative return address, 1 | 2 for both
+	 * @param operatorIndex  Index of the operand used for address resolution.
+	 * @param addressOffset  Additional offset applied to the resolved address.
+	 *
+	 * @return The resolved address, or 0 if the signature was not found or invalid.
+	 */
 	uint64_t signatureScanEx(uint64_t start, uint64_t end, const Pattern& pattern,
 		short type, int operatorIndex, int addressOffset);
 
@@ -64,15 +98,29 @@ public:
 		short type, int operatorIndex, int addressOffset);
 
 	//--------------------------------------------------------
-	// 
+	// Value scanning
 	//--------------------------------------------------------
 
+	/**
+	 * @brief Finds the next occurrence of a raw value in memory.
+	 *
+	 * @return Address of the first occurrence after @p start, or 0 if not found.
+	 */
 	uint64_t findNextValue(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	uint64_t findNextValue(MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	uint64_t findNextValue(MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
+	/**
+	 * @brief Finds the next occurrence of a raw value in memory.
+	 *
+	 * Type-safe wrapper around findNextValue().
+	 * 
+	 * @note Performs a byte-wise comparison of the provided value.
+	 * 
+	 * @return Address of the first occurrence after @p start, or 0 if not found.
+	 */
 	template <typename T>
 	uint64_t findNextValue(uint64_t start, uint64_t stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
@@ -91,12 +139,28 @@ public:
 		return findNextValue(memCopy, &value, sizeof(value), protectionFilter);
 	}
 
+	/**
+	 * @brief Finds all occurrences of a raw value in memory.
+	 * 
+	 * @note Performs a byte-wise comparison of the provided value.
+	 * 
+	 * @return A list of addresses where the value was found.
+	 */
 	std::vector<uint64_t> findAllValues(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	std::vector<uint64_t> findAllValues(MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	std::vector<uint64_t> findAllValues(MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
+	/**
+	 * @brief Finds all occurrences of a raw value in memory.
+	 * 
+	 * Type-safe wrapper around findNextValue().
+	 * 
+	 * @note Performs a byte-wise comparison of the provided value.
+	 * 
+	 * @return A list of addresses where the value was found.
+	 */
 	template <typename T>
 	std::vector<uint64_t> findAllValues(uint64_t start, uint64_t stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
@@ -116,13 +180,37 @@ public:
 	}
 
 	//--------------------------------------------------------
-	// 
+	// Specialized scans
 	//--------------------------------------------------------
 
+	/**
+	 * @brief Scans memory for ASCII strings.
+	 *
+	 * Identifies contiguous printable character sequences with a minimum length.
+	 *
+	 * @return A list of (address, string) pairs.
+	 */
 	std::vector<std::pair<uint64_t, std::string>> scanForStrings(uint64_t start, uint64_t stop, size_t minSize);
 
+	/**
+	 * @brief Scans memory for for wide (UTF-16) strings.
+	 *
+	 * Identifies contiguous printable character sequences with a minimum length.
+	 *
+	 * @return A list of (address, wide string) pairs.
+	 */
 	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize);
 
+	/**
+	 * @brief Searches for a code cave (a contiguous region of unused bytes).
+	 *
+	 * Typically used for injection or patching purposes. The scan is restricted to 
+	 * memory pages that are both readable and executable only. This ensures that 
+	 * the returned region is suitable for code execution and unlikely to be modified 
+	 * by regular program behavior.
+	 *
+	 * @return Address of the first suitable code cave, or 0 if none was found.
+	 */
 	uint64_t scanForCodeCave(uint64_t start, uint64_t stop, size_t minSize);
 
 	uint64_t scanForCodeCave(size_t minSize);
@@ -131,10 +219,23 @@ public:
 
 	uint64_t scanForCodeCave(const MemoryCopy& memCopy, size_t minSize);
 
+	/**
+	 * @brief Finds all cross-references to a relative address within a module.
+	 *
+	 * The scan iterates over decoded instructions within the given module and
+ 	 * collects those whose operands reference the specified relative target address
+	 * 
+	 * This is commonly used to locate references to functions, globals,
+	 * or instruction targets inside executable code.
+	 *
+	 * @param module                 The module to scan.
+	 * @param relativeTargetAddress  Target address relative to the module base.
+	 *
+	 * @return A list of absolute instruction addresses that reference the target.
+	 */
 	std::vector<uint64_t> findAllCrossRefs(const ProcessImage& module, uint64_t relativeTargetAddress);
 
 	std::vector<uint64_t> findAllCrossRefs(const MemoryCopy& memCopy, uint64_t relativeTargetAddress);
-
 
 
 private:
