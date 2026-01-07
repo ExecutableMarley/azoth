@@ -13,44 +13,46 @@
 #include <ntstatus.h>
 #include <TlHelp32.h>
 
+#include "SmartHandle.hpp"
 #include "WStringUtil.hpp"
 
 namespace Azoth
 {
 
 
-bool retrieveProcessIDByName(const std::string& procName, std::uint32_t& out_process_id)
+PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::uint32_t& out_process_id)
 {
-	HANDLE toolSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
+	if (!toolSnapshot.isValid())
+		return { EPlatformError::InternalError, GetLastError() };
+
 	PROCESSENTRY32 pEntry;
 	pEntry.dwSize = sizeof(pEntry);
 	pEntry.th32ProcessID = 0;
 	if (!Process32First(toolSnapshot, &pEntry))
-		return 0;
+		return { EPlatformError::InternalError, GetLastError() };
 	do
 	{
 		//Performs an ordinal Comparison, returns false (0) if equal
 		if (!strcmp(pEntry.szExeFile, procName.c_str()))
 		{
 			out_process_id = pEntry.th32ProcessID;
-			break;
+			return { EPlatformError::Success, 0};
 		}
 	} while (Process32Next(toolSnapshot, &pEntry));
-	CloseHandle(toolSnapshot);
-	return false;
+	return { EPlatformError::ResourceNotFound, 0};
 }
 
-bool retrieveProcessIDByName(const std::string& procName, std::vector<std::uint32_t>& out_process_ids)
+PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<std::uint32_t>& out_process_ids)
 {
 	out_process_ids.clear();
-	HANDLE toolSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
 	PROCESSENTRY32 pEntry;
 	pEntry.dwSize = sizeof(pEntry);
 	pEntry.th32ProcessID = 0;
 	if (!Process32First(toolSnapshot, &pEntry))
 	{
-		CloseHandle(toolSnapshot);
-		return false;
+		return { EPlatformError::InternalError, GetLastError() };
 	}
 	do
 	{
@@ -60,8 +62,11 @@ bool retrieveProcessIDByName(const std::string& procName, std::vector<std::uint3
 			out_process_ids.push_back(pEntry.th32ProcessID);
 		}
 	} while (Process32Next(toolSnapshot, &pEntry));
-	CloseHandle(toolSnapshot);
-	return true;
+
+	if (out_process_ids.empty())
+		return { EPlatformError::ResourceNotFound, 0 };
+	else
+		return { EPlatformError::Success, 0};
 }
 
 // NtQuerySystemInformation
@@ -230,44 +235,57 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 	return true;
 }
 
-bool retrieveProcessIDByWindowName(const std::string& windowName, std::uint32_t& out_process_id)
+PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, std::uint32_t& out_process_id)
 {
 	HWND hwnd = FindWindowA(NULL, windowName.c_str());
 
-	if (hwnd == NULL) { return false; }
+	if (hwnd == NULL)
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
 
 	DWORD processID = 0;
-    GetWindowThreadProcessId(hwnd, &processID);
+    if (GetWindowThreadProcessId(hwnd, &processID) == 0)
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
 
-	if (processID == 0) { return false; }
+	if (processID == 0)
+	{
+		return { EPlatformError::ResourceNotFound, 0 };
+	}
 
 	out_process_id = static_cast<std::uint32_t>(processID);
-	return true;
+	return { EPlatformError::Success, 0 };
 }
 
 //
 
-bool retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel& outLevel)
+PlatformErrorState retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel& outLevel)
 {
     outLevel = EProcessPrivilegeLevel::Unknown;
 
     if (!processHandle)
-        return false;
+        return { EPlatformError::InvalidArgument, 0 };
 
     HANDLE token = nullptr;
     if (!OpenProcessToken(processHandle, TOKEN_QUERY, &token))
-        return false;
+        return { EPlatformError::InternalError, 0 };
 
     TOKEN_ELEVATION elevation{};
     DWORD size = 0;
 
 	// Check for user elevation
-    if (GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size))
+    if (!GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size))
     {
-        outLevel = elevation.TokenIsElevated
-            ? EProcessPrivilegeLevel::ElevatedUser
-            : EProcessPrivilegeLevel::StandardUser;
+        DWORD err = GetLastError();
+        CloseHandle(token);
+        return { EPlatformError::InternalError, err };
     }
+
+    outLevel = elevation.TokenIsElevated
+        ? EProcessPrivilegeLevel::ElevatedUser
+        : EProcessPrivilegeLevel::StandardUser;
 
     // Check for SYSTEM explicitly
     SID_IDENTIFIER_AUTHORITY ntAuthority = SECURITY_NT_AUTHORITY;
@@ -288,15 +306,15 @@ bool retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel&
     }
 
     CloseHandle(token);
-    return outLevel != EProcessPrivilegeLevel::Unknown;
+	return { EPlatformError::Success, 0 };
 }
 
-bool retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch)
+PlatformErrorState retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch)
 {
     outArch = EProcessArchitecture::Unknown;
 
     if (!processHandle)
-        return false;
+        return { EPlatformError::InvalidArgument, 0};
 
     // Attempt IsWow64Process2 (Win10+)
     static auto pIsWow64Process2 =
@@ -320,17 +338,17 @@ bool retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& out
             case IMAGE_FILE_MACHINE_AMD64: outArch = EProcessArchitecture::x64;   break;
             case IMAGE_FILE_MACHINE_ARM:   outArch = EProcessArchitecture::ARM32; break;
             case IMAGE_FILE_MACHINE_ARM64: outArch = EProcessArchitecture::ARM64; break;
-            default: break;
+            default: return { EPlatformError::NotSupported, machine }; //Todo: Better Error code
             }
 
-            return outArch != EProcessArchitecture::Unknown;
+            return { EPlatformError::Success, 0 };
         }
     }
 
     // Fallback: IsWow64Process
     BOOL isWow64 = FALSE;
     if (!IsWow64Process(processHandle, &isWow64))
-        return false;
+        return { EPlatformError::InternalError, GetLastError() };;
 
 #if defined(_WIN64)
     outArch = isWow64 ? EProcessArchitecture::x86 : EProcessArchitecture::x64;
@@ -338,42 +356,42 @@ bool retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& out
     outArch = EProcessArchitecture::x86;
 #endif
 
-    return true;
+    return { EPlatformError::Success, 0 };
 }
 
-bool retrieveProcessName(HANDLE processHandle, std::string& outProcessName)
+PlatformErrorState retrieveProcessName(HANDLE processHandle, std::string& outProcessName)
 {
     outProcessName.clear();
 
     if (!processHandle)
-        return false;
+        return { EPlatformError::InvalidArgument, 0};;
 
     char buffer[MAX_PATH];
     DWORD size = MAX_PATH;
 
     if (!QueryFullProcessImageNameA(processHandle, 0, buffer, &size))
-        return false;
+        return { EPlatformError::InternalError, GetLastError() };
 
     const char* name = strrchr(buffer, '\\');
     outProcessName = name ? name + 1 : buffer;
-    return true;
+    return { EPlatformError::Success, 0 };
 }
 
-bool retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath)
+PlatformErrorState retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath)
 {
     outProcessPath.clear();
 
     if (!processHandle)
-        return false;
+        return { EPlatformError::InvalidArgument, 0};
 
     char buffer[MAX_PATH];
     DWORD size = MAX_PATH;
 
     if (!QueryFullProcessImageNameA(processHandle, 0, buffer, &size))
-        return false;
+        return { EPlatformError::InternalError, GetLastError() };
 
     outProcessPath.assign(buffer, size);
-    return true;
+    return { EPlatformError::Success, 0 };
 }
 
 

@@ -262,22 +262,22 @@ public:
 
 	bool getProcessName(uint32_t procID, std::string& name) const override
 	{
-		return retrieveProcessName(_hProcess, name);
+		return setError(retrieveProcessName(_hProcess, name));
 	}
 
 	bool getProcessPath(uint32_t procID, std::string& path) const override
 	{
-		return retrieveProcessPath(_hProcess, path);
+		return setError(retrieveProcessPath(_hProcess, path));
 	}
 
 	bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture) const override
 	{
-		return retrieveProcessArchitecture(_hProcess, architecture);
+		return setError(retrieveProcessArchitecture(_hProcess, architecture));
 	}
 
 	bool getProcessPrivilegeLevel(uint32_t procID, EProcessPrivilegeLevel& privileges) const override
 	{
-		return retrieveProcessPrivilegeLevel(_hProcess, privileges);
+		return setError(retrieveProcessPrivilegeLevel(_hProcess, privileges));
 	}
 
 	//=== Memory ===//
