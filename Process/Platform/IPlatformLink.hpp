@@ -89,8 +89,9 @@ public:
 	enum class EPlatformError : uint32_t
 	{
     	Success = 0,
-    	NotImplemented,    // 
-    	NotSupported,      // The OS physically cannot do this
+    	NotImplemented,    // Platform backend does not implement this feature
+    	NotSupported,      // OS fundamentally cannot support this feature
+		SymbolNotFound,    // Required OS symbol could not be resolved
     	InvalidArgument,   // Bad arguments passed
 		AccessDenied,      // Permission issue
     	InternalError      // OS-specific error occurred
@@ -102,7 +103,10 @@ public:
 		uint64_t       osError       = 0;
 	};
 protected:
-	bool setError(EPlatformError platformError, uint64_t osError = 0)
+	/**
+	 * @brief Sets the last error state and always returns false.
+	 */
+	bool setError(EPlatformError platformError, uint64_t osError = 0) const
 	{
 		_lastError.platformError = platformError;
 		_lastError.osError       = osError;
