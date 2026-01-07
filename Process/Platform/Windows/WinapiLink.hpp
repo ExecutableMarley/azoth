@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #include <ntstatus.h>
+#include <winternl.h>
 
 #include <exception>
 
@@ -49,7 +50,7 @@ public:
 		HANDLE tmpHandle = OpenProcess(PROCESS_ALL_ACCESS, false, procID);
 
 		if (tmpHandle == INVALID_HANDLE_VALUE)
-			return false;
+			return setError(EPlatformError::InternalError, GetLastError());
 
 		this->_procID = procID;
 		this->_hProcess = tmpHandle;
@@ -79,7 +80,14 @@ public:
 	bool terminate()
 	{
 		DWORD exitCode = 1;
-		return TerminateProcess(this->_hProcess, exitCode);
+		if (TerminateProcess(this->_hProcess, exitCode))
+		{
+			return true;
+		}
+		else
+		{
+			return setError(EPlatformError::InternalError, GetLastError());
+		}
 	}
 
 	bool suspend()
@@ -91,16 +99,19 @@ public:
 		{
     		auto hNtdll = GetModuleHandleW(L"ntdll.dll");
     		if (!hNtdll)
-        		return false;
+        		return setError(EPlatformError::SymbolNotFound);
 			
 			suspendProcess = reinterpret_cast<fnNtSuspendProcess>(GetProcAddress(hNtdll, "NtSuspendProcess"));
 		}
 		if (!suspendProcess)
-        	return false;
+        	return setError(EPlatformError::SymbolNotFound);
 		
-		auto status = suspendProcess(this->_hProcess);
-
-		return STATUS_SUCCESS == status;
+		NTSTATUS status = suspendProcess(this->_hProcess);
+		if (!NT_SUCCESS(status))
+		{
+			return setError(EPlatformError::InternalError, status);
+		}
+		return true;
 	}
 
 	bool resume()
@@ -112,16 +123,19 @@ public:
 		{
         	auto hNtdll = GetModuleHandleW(L"ntdll.dll");
         	if (!hNtdll)
-            	return false;
+            	return setError(EPlatformError::SymbolNotFound);
 
         	resumeProcess = reinterpret_cast<fnNtResumeProcess>(GetProcAddress(hNtdll, "NtResumeProcess"));
     	}
 		if (!resumeProcess)
-            	return false;
+            return setError(EPlatformError::SymbolNotFound);
 
-		auto status = resumeProcess(this->_hProcess);
-
-		return STATUS_SUCCESS == status;
+		NTSTATUS status = resumeProcess(this->_hProcess);
+		if (!NT_SUCCESS(status))
+		{
+			return setError(EPlatformError::InternalError, status);
+		}
+		return true;
 	}
 
 	uint32_t getExitCode() const override
@@ -129,7 +143,7 @@ public:
 		DWORD exitCode;
 		if (GetExitCodeProcess(this->_hProcess, &exitCode))
 			return exitCode;
-		return 0;
+		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	//=== Process Images ===//
@@ -274,7 +288,7 @@ public:
 		if (ReadProcessMemory(this->_hProcess, (LPVOID)addr, buffer, size, (SIZE_T*)&bytesRead) && bytesRead != 0)
 			return true;
 
-		return false;
+		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	bool write(uint64_t addr, size_t size, const void* buffer) override
@@ -283,7 +297,7 @@ public:
 		if (WriteProcessMemory(this->_hProcess, (LPVOID)addr, buffer, size, (SIZE_T*)&bytesRead) && bytesRead != 0)
 			return true;
 
-		return false;
+		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const override
@@ -291,11 +305,10 @@ public:
 		MEMORY_BASIC_INFORMATION mbi{};
 		if (VirtualQueryEx(this->_hProcess, (LPVOID)addr, &mbi, sizeof(mbi)) == 0)
 		{
-			return false;
+			memoryRegion = fromWinBasicInformation(mbi);
+			return true;
 		}
-
-		memoryRegion = fromWinBasicInformation(mbi);
-		return true;
+		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) override
@@ -308,20 +321,27 @@ public:
 				*oldProtect = fromWinProtect(winOldProtection);
 			return true;
 		}
-		return false;
+		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) override
 	{
 		auto winProt = toWinProtect(protection);
-		addr = (uint64_t)VirtualAllocEx(this->_hProcess, NULL, size,
-			MEM_COMMIT | MEM_RESERVE, winProt);
-		return addr;
+		addr = (uint64_t)VirtualAllocEx(this->_hProcess, NULL, size, MEM_COMMIT | MEM_RESERVE, winProt);
+		
+		if (addr)
+			return addr;
+
+		return (uint64_t)setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	bool virtualFree(uint64_t addr) override
 	{
-		return VirtualFreeEx(this->_hProcess, (LPVOID)addr, 0, MEM_RELEASE);
+		if (VirtualFreeEx(this->_hProcess, (LPVOID)addr, 0, MEM_RELEASE))
+		{
+			return true;
+		}
+		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
 	//=== Threads ===//
