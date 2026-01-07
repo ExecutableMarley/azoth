@@ -15,6 +15,7 @@
 
 #include "SmartHandle.hpp"
 #include "WStringUtil.hpp"
+#include "WinTypes.hpp"
 
 namespace Azoth
 {
@@ -257,6 +258,97 @@ PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, 
 
 	out_process_id = static_cast<std::uint32_t>(processID);
 	return { EPlatformError::Success, 0 };
+}
+
+//
+
+PlatformErrorState retrieveProcessMainImage(uint32_t pid, ProcessImage& procImage)
+{
+	SmartHandle hSnap(CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid));
+	if (!hSnap.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+	
+	MODULEENTRY32 mEntry;
+	mEntry.dwSize = sizeof(mEntry);
+
+	if (Module32First(hSnap, &mEntry))
+	{
+		procImage = fromWinModule(mEntry);
+		return { EPlatformError::Success, 0 };
+	}
+	return { EPlatformError::InternalError, GetLastError() };
+}
+
+PlatformErrorState retrieveProcessImage(uint32_t pid, const std::string& imageName, ProcessImage& procImage)
+{
+	SmartHandle hSnap(CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid));
+	if (!hSnap.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+	
+	MODULEENTRY32 mEntry;
+	mEntry.dwSize = sizeof(mEntry);
+    
+	if (Module32First(hSnap, &mEntry))
+	{
+		do
+		{
+			if (!strcmp(mEntry.szModule, imageName.c_str()))
+			{
+				procImage = fromWinModule(mEntry);
+				return { EPlatformError::Success, 0 };
+			}
+		} while (Module32Next(hSnap, &mEntry));
+	}
+	else
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
+
+	DWORD errorCode = GetLastError();
+	if (errorCode == ERROR_NO_MORE_FILES)
+	{
+		return { EPlatformError::ResourceNotFound, 0 };
+	}
+	else
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
+}
+
+PlatformErrorState retrieveAllProcessImages(uint32_t pid, std::vector<ProcessImage>& procImages)
+{
+	procImages.clear();
+	SmartHandle hSnap(CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid));
+	if (!hSnap.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+	
+	MODULEENTRY32 moduleEntry;
+	moduleEntry.dwSize = sizeof(MODULEENTRY32);
+
+	if (Module32First(hSnap, &moduleEntry))
+	{
+		do
+		{
+			procImages.push_back(fromWinModule(moduleEntry));
+		} while (Module32Next(hSnap, &moduleEntry));
+	}
+	else
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
+
+	DWORD errorCode = GetLastError();
+	if (errorCode == ERROR_NO_MORE_FILES)
+	{
+		if (procImages.empty())
+			return { EPlatformError::ResourceNotFound, 0 };
+		else
+			return { EPlatformError::Success, 0 };
+	}
+	else
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
 }
 
 //
