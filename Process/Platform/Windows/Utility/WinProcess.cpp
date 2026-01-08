@@ -21,7 +21,7 @@ namespace Azoth
 {
 
 
-PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::uint32_t& out_process_id)
+PlatformErrorState retrieveProcessIDByName(const std::string& procName, uint32_t& out_process_id)
 {
 	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
 	if (!toolSnapshot.isValid())
@@ -44,7 +44,7 @@ PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::uin
 	return { EPlatformError::ResourceNotFound, 0};
 }
 
-PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<std::uint32_t>& out_process_ids)
+PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<uint32_t>& out_process_ids)
 {
 	out_process_ids.clear();
 	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
@@ -73,7 +73,7 @@ PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vec
 // NtQuerySystemInformation
 using fnNtQuerySystemInformation = decltype(&NtQuerySystemInformation);
 
-bool retrieveProcessIDByNameFallback(const std::string& process_name, std::uint32_t& out_process_id)
+bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id)
 {
 	out_process_id = 0;
 
@@ -90,7 +90,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::uint3
 
 	ULONG size = 0x10000; // (64KB)
 	NTSTATUS status;
-	std::vector<std::uint8_t> system_information_buffer;
+	std::vector<uint8_t> system_information_buffer;
 
 	do
 	{
@@ -133,7 +133,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::uint3
 
 			if (current_image_name_lower == wprocess_name_lower)
 			{
-				out_process_id = (std::uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
+				out_process_id = (uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
 				return true;
 			}
 		}
@@ -146,7 +146,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::uint3
 
 		// Advance to the next entry
 		current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(
-			reinterpret_cast<std::uint8_t*>(current_info) + current_info->NextEntryOffset
+			reinterpret_cast<uint8_t*>(current_info) + current_info->NextEntryOffset
 			);
 	}
 
@@ -154,7 +154,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::uint3
 	return true;
 }
 
-bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<std::uint32_t>& process_ids)
+bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& process_ids)
 {
 	process_ids.clear();
 
@@ -171,7 +171,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 
 	ULONG size = 0x10000; // (64KB)
 	NTSTATUS status;
-	std::vector<std::uint8_t> system_information_buffer;
+	std::vector<uint8_t> system_information_buffer;
 
 	do
 	{
@@ -214,8 +214,8 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 
 			if (current_image_name_lower == wprocess_name_lower)
 			{
-				process_ids.push_back((std::uint64_t)(ULONG_PTR)current_info->UniqueProcessId);
-				//out_process_id = (std::uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
+				process_ids.push_back((uint64_t)(ULONG_PTR)current_info->UniqueProcessId);
+				//out_process_id = (uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
 				return true;
 			}
 		}
@@ -228,7 +228,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 
 		// Advance to the next entry
 		current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(
-			reinterpret_cast<std::uint8_t*>(current_info) + current_info->NextEntryOffset
+			reinterpret_cast<uint8_t*>(current_info) + current_info->NextEntryOffset
 			);
 	}
 
@@ -236,7 +236,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 	return true;
 }
 
-PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, std::uint32_t& out_process_id)
+PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, uint32_t& out_process_id)
 {
 	HWND hwnd = FindWindowA(NULL, windowName.c_str());
 
@@ -256,7 +256,7 @@ PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, 
 		return { EPlatformError::ResourceNotFound, 0 };
 	}
 
-	out_process_id = static_cast<std::uint32_t>(processID);
+	out_process_id = static_cast<uint32_t>(processID);
 	return { EPlatformError::Success, 0 };
 }
 
@@ -276,7 +276,16 @@ PlatformErrorState retrieveProcessMainImage(uint32_t pid, ProcessImage& procImag
 		procImage = fromWinModule(mEntry);
 		return { EPlatformError::Success, 0 };
 	}
-	return { EPlatformError::InternalError, GetLastError() };
+	
+	DWORD errorCode = GetLastError();
+	if (errorCode == ERROR_NO_MORE_FILES)
+	{
+		return { EPlatformError::ResourceNotFound, 0 };
+	}
+	else
+	{
+		return { EPlatformError::InternalError, GetLastError() };
+	}
 }
 
 PlatformErrorState retrieveProcessImage(uint32_t pid, const std::string& imageName, ProcessImage& procImage)
@@ -298,10 +307,6 @@ PlatformErrorState retrieveProcessImage(uint32_t pid, const std::string& imageNa
 				return { EPlatformError::Success, 0 };
 			}
 		} while (Module32Next(hSnap, &mEntry));
-	}
-	else
-	{
-		return { EPlatformError::InternalError, GetLastError() };
 	}
 
 	DWORD errorCode = GetLastError();
@@ -331,10 +336,6 @@ PlatformErrorState retrieveAllProcessImages(uint32_t pid, std::vector<ProcessIma
 		{
 			procImages.push_back(fromWinModule(moduleEntry));
 		} while (Module32Next(hSnap, &moduleEntry));
-	}
-	else
-	{
-		return { EPlatformError::InternalError, GetLastError() };
 	}
 
 	DWORD errorCode = GetLastError();
