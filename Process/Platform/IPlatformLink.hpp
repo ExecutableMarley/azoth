@@ -19,6 +19,8 @@ namespace Azoth
  */
 class IPlatformLink
 {
+	friend class CProcess;
+	friend class CMemoryModule;
 public:
 	virtual ~IPlatformLink() = default;
 
@@ -109,7 +111,7 @@ protected:
 	}
 
 private:
-	static thread_local PlatformErrorState _lastError;
+	inline static thread_local PlatformErrorState _lastError;
 public:
 
 	/**
