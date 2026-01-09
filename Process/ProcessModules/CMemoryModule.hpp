@@ -16,6 +16,7 @@
 namespace Azoth
 {
 
+typedef uint8_t BYTE;
 
 class CProcess;
 
@@ -252,7 +253,10 @@ public:
 private:
 
      //Placeholder
-     bool setError(EPlatformError errorCode) { return errorCode == EPlatformError::Success; }
+     bool setError(EPlatformError errorCode)
+     {
+          return _platformLink->setError(errorCode);
+     }
 
      //Not needed with current design
      bool addProtectExRestore(uint64_t protectAddr, size_t size, EMemoryProtection oldProtect)
@@ -332,13 +336,28 @@ public:
           return setError(EPlatformError::Success);
 	}
 
+     bool restoreProtection(uint64_t addr)
+     {
+          auto it = _pageProtectRestoreMap.find(addr);
+          if (it == _pageProtectRestoreMap.end())
+               return true;
+          
+          const auto& entry = it->second;
+
+          if (!_platformLink->virtualProtect(addr, entry.size, entry.origProtect, nullptr))
+               return false;
+          
+          _pageProtectRestoreMap.erase(it);
+          return true;
+     }
+
 private:
 
      bool addAllocationRestoreEntry(uint64_t allocatedAddr, size_t allocationSize)
      {
           if (_allocRestoreMap.count(allocatedAddr) == 0)
           {
-               _allocRestoreMap.insert(allocatedAddr, allocationSize);
+               _allocRestoreMap[allocatedAddr] = AllocRestorePoint(allocationSize);
                return true;
           }
           //This should not happen normally?
@@ -358,7 +377,7 @@ public:
 	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
 	{
           uint64_t allocatedAddr = _platformLink->virtualAllocate(addr, size, protection);
-          if (allocatedAddr != NULL)
+          if (allocatedAddr)
           {
                addAllocationRestoreEntry(allocatedAddr, size);
           }
@@ -394,11 +413,101 @@ public:
           return false; //No tracked entry
 	}
 
+     bool restoreAllocation(uint64_t addr)
+     {
+          return virtualFree(addr, false);
+     }
+
+private:
+
+     bool addMemoryRestorePoint(uint64_t addr, size_t size)
+     {
+          if (size == 0 || addr + size < addr)
+               return setError(EPlatformError::InvalidArgument);
+
+          uint64_t end = addr + size;
+          auto it = _codeMemoryRestoreMap.lower_bound(addr);
+
+          // Exact match
+          if (it != _codeMemoryRestoreMap.end() && it->first == addr)
+          {
+               if (it->second.size != size)
+                    return setError(EPlatformError::InvalidArgument);
+
+               return setError(EPlatformError::Success);
+          }
+
+          // Forward overlap
+          if (it != _codeMemoryRestoreMap.end() && it->first < end)
+               return setError(EPlatformError::InvalidArgument);
+
+          // Backward overlap
+          if (it != _codeMemoryRestoreMap.begin())
+          {
+               auto prev = std::prev(it);
+               if (prev->first + prev->second.size > addr)
+                    return setError(EPlatformError::InvalidArgument);
+          }
+
+          // Capture original bytes
+          auto original = std::make_unique<uint8_t[]>(size);
+          if (!read(addr, size, original.get()))
+               return false;
+
+          _codeMemoryRestoreMap.emplace(addr, CodeRestorePoint{ size, std::move(original) });
+
+	     return setError(EPlatformError::Success);
+     }
+public:
+
+     bool patchReadOnlyMemory(uint64_t addr, size_t size, const BYTE* buffer)
+     {
+          MemoryRegion mr;
+          if (!queryMemory(addr, mr)) return false;
+
+          EMemoryProtection tmpProtection = mr.protection | EMemoryProtection::Write;
+
+          EMemoryProtection oldProtection;
+          if (!virtualProtect(mr.baseAddress, mr.regionSize, tmpProtection, &oldProtection))
+          {
+               return false;
+          }
+
+          if (!addMemoryRestorePoint(addr, size))
+          {
+               //Todo: This can overwrite the last Error
+               virtualProtect(mr.baseAddress, mr.regionSize, oldProtection, NULL);
+               return false;
+          }
+
+          bool success = this->write(addr, size, buffer);
+
+          //Todo: This also can overwrite the last Error
+          virtualProtect(mr.baseAddress, mr.regionSize, oldProtection, NULL);
+
+          return success;
+     }
+
+     bool restoreReadOnlyMemory(uint64_t addr)
+     {
+          auto it = _codeMemoryRestoreMap.find(addr);
+          if (it == _codeMemoryRestoreMap.end())
+               return true;
+          
+          const auto& entry = it->second;
+
+          if (!write(addr, entry.size, entry.originalBytes.get()))
+               return false;
+          
+          _codeMemoryRestoreMap.erase(it);
+          return true;
+     }
+
 private:
     struct CodeRestorePoint
     {
         size_t size;
-        std::unique_ptr<BYTE[]> originalBytes;
+        std::unique_ptr<uint8_t[]> originalBytes;
     };
 
     struct ProtectRestorePoint
@@ -418,32 +527,6 @@ private:
      std::map<uint64_t, CodeRestorePoint>    _codeMemoryRestoreMap;
      std::map<uint64_t, ProtectRestorePoint> _pageProtectRestoreMap;
      std::map<uint64_t, AllocRestorePoint>   _allocRestoreMap;
-
-     bool hasOverlap(const std::map<uint64_t, ProtectRestorePoint>& map, uint64_t addr, size_t size)
-     {
-          if (size == 0 || map.empty())
-               return false;
-
-          uint64_t end = addr + size;
-          if (end < addr) //Overflow
-               return true;
-
-          auto it = map.lower_bound(addr);
-          if (it != map.end())
-          {
-              uint64_t start = it->first;
-              if (start < end)
-                  return true;
-          }
-          if (it != map.begin())
-          {
-               auto prev = std::prev(it);
-               uint64_t prevEnd = prev->first + prev->second.size;
-               if (prevEnd > addr)
-                    return true;
-          }
-          return false;
-     }
 };
 
 
