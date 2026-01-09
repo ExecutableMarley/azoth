@@ -12,6 +12,7 @@
 #include <winternl.h>
 #include <ntstatus.h>
 #include <TlHelp32.h>
+#include <Wow64apiset.h>
 
 #include "SmartHandle.hpp"
 #include "WStringUtil.hpp"
@@ -409,10 +410,11 @@ PlatformErrorState retrieveProcessArchitecture(HANDLE processHandle, EProcessArc
     if (!processHandle)
         return { EPlatformError::InvalidArgument, 0};
 
+	typedef BOOL (WINAPI *PISWOW64PROCESS2)(HANDLE, USHORT*, USHORT*);
+
     // Attempt IsWow64Process2 (Win10+)
     static auto pIsWow64Process2 =
-        reinterpret_cast<decltype(&IsWow64Process2)>(
-            GetProcAddress(GetModuleHandleA("kernel32.dll"), "IsWow64Process2"));
+        reinterpret_cast<PISWOW64PROCESS2>(GetProcAddress(GetModuleHandleA("kernel32.dll"), "IsWow64Process2"));
 
     if (pIsWow64Process2)
     {
