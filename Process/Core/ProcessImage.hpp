@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iomanip>
 #include <stdint.h>
 #include <string>
 
@@ -76,6 +77,33 @@ public:
      */
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + size); };
 };
+
+inline std::ostream& operator<<(std::ostream& os, const ProcessImage& img)
+{
+    if (!img.valid())
+    {
+        return os << "ProcessImage{ invalid }";
+    }
+
+    std::ios_base::fmtflags f(os.flags());
+    const char oldFill = os.fill();
+
+    os << "ProcessImage{ "
+       << "baseAddress=0x" << std::hex << std::setw(16) << std::setfill('0') << img.baseAddress 
+       << ", size=" << std::dec << img.size;
+
+    if (!img.name.empty())
+        os << ", name=\"" << img.name << "\"";
+
+    if (!img.path.empty())
+        os << ", path=\"" << img.path << "\"";
+
+    os << " }";
+
+    os.flags(f);
+    os.fill(oldFill);
+    return os;
+}
 
 class ImageSymbol
 {

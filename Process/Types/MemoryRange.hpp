@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <algorithm>
+#include <iomanip>
 
 #include "Address.hpp"
 
@@ -69,5 +70,27 @@ public:
     }
 };
 
+inline std::ostream& operator<<(std::ostream& os, const MemoryRange& range)
+{
+    if (!range.valid())
+        return os << "MemoryRange{ invalid }";
+
+    const std::ios_base::fmtflags oldFlags = os.flags();
+    const char oldFill = os.fill();
+
+    os << "MemoryRange{ "
+       << "start=0x"
+       << std::hex << std::setw(sizeof(range.startAddr) * 2)
+       << std::setfill('0') << range.startAddr
+       << ", stop=0x"
+       << std::hex << std::setw(sizeof(range.stopAddr) * 2)
+       << std::setfill('0') << range.stopAddr
+       << ", size=" << std::dec << range.size()
+       << " }";
+
+    os.flags(oldFlags);
+    os.fill(oldFill);
+    return os;
+}
 
 } // namespace Azoth
