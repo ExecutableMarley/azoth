@@ -7,7 +7,7 @@ namespace Azoth
 
 namespace MemIn
 {
-    typedef unsigned char BYTE;
+    typedef uint8_t BYTE;
 
     inline size_t findCodeCaveSize(const void* ptr, size_t bufferSize)
     {
