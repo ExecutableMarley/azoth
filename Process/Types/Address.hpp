@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <cstdint>
+#include <iomanip>
 
 namespace Azoth
 {
@@ -125,5 +126,20 @@ public:
     }
 };
 
+inline std::ostream& operator<<(std::ostream& os, const Address& addr)
+{
+    const auto oldFlags = os.flags();
+    const auto oldFill  = os.fill();
+
+    os << "0x"
+       << std::hex
+       << std::setw(sizeof(Address) * 2)
+       << std::setfill('0')
+       << static_cast<uint64_t>(addr);
+
+    os.flags(oldFlags);
+    os.fill(oldFill);
+    return os;
+}
 
 } // namespace Azoth

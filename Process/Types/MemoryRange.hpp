@@ -40,33 +40,45 @@ public:
 
     bool valid() const { return stopAddr > startAddr; }
 
-    //Union
-    MemoryRange operator +(const MemoryRange& other) const
+    void align(uint64_t align)
+    {
+        this->startAddr.alignDown(align);
+        this->stopAddr.alignUp(align);
+    }
+
+    bool isAligned(uint64_t align) const
+    {
+        return this->startAddr.isAligned(align) && this->stopAddr.isAligned(align);
+    }
+
+    MemoryRange boundingRange(const MemoryRange& other) const
     {
         return MemoryRange(std::min(this->startAddr, other.startAddr), std::max(this->stopAddr, other.stopAddr));
     }
 
-    //Align
+    MemoryRange overlapRange(const MemoryRange& other) const
+    {
+        Address start = std::max(startAddr, other.startAddr);
+        Address stop  = std::min(stopAddr,  other.stopAddr);
+
+        if (stop <= start)
+            return MemoryRange{}; // invalid
+
+        return MemoryRange(start, stop);
+    }
+
     //Schnitt
     //Overlap
-    //MaxRange
-
-    //Todo: Handle this differently. This is not guaranteed to work
-
-    static constexpr uint64_t minAddr()   { return 0x10000; }
-    //Probably not correct for Linux 32bit
-    static constexpr uint64_t maxAddr32() { return 0x7FFFFFFF; }
-    static constexpr uint64_t maxAddr()   { return 0x7FFFFFFEFFFF; }
 
     // Todo: Remove or replace
     static MemoryRange max_range_32bit()
     {
-        return MemoryRange(minAddr(), maxAddr32());
+        return MemoryRange(Address::minAddr(), Address::maxAddr32());
     }
 
     static MemoryRange max_range_64bit()
     {
-        return MemoryRange(minAddr(), maxAddr());
+        return MemoryRange(Address::minAddr(), Address::maxAddr());
     }
 };
 
@@ -75,22 +87,11 @@ inline std::ostream& operator<<(std::ostream& os, const MemoryRange& range)
     if (!range.valid())
         return os << "MemoryRange{ invalid }";
 
-    const std::ios_base::fmtflags oldFlags = os.flags();
-    const char oldFill = os.fill();
-
-    os << "MemoryRange{ "
-       << "start=0x"
-       << std::hex << std::setw(sizeof(range.startAddr) * 2)
-       << std::setfill('0') << range.startAddr
-       << ", stop=0x"
-       << std::hex << std::setw(sizeof(range.stopAddr) * 2)
-       << std::setfill('0') << range.stopAddr
-       << ", size=" << std::dec << range.size()
-       << " }";
-
-    os.flags(oldFlags);
-    os.fill(oldFill);
-    return os;
+    return os << "MemoryRange{ "
+              << "start="   << range.startAddr
+              << ", stop="  << range.stopAddr
+              << ", size="  << range.size()
+              << " }";
 }
 
 } // namespace Azoth
