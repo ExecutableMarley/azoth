@@ -11,6 +11,11 @@ namespace Azoth
 {
 
 
+/**
+ * @brief Platform-agnostic error codes.
+ *
+ * @note These values are stable and backend-independent.
+ */
 enum class EPlatformError : uint32_t
 {
 	Success = 0,
@@ -24,10 +29,31 @@ enum class EPlatformError : uint32_t
 	InternalError      // OS-specific error occurred
 };
 
+
+/**
+ * @brief Detailed error state returned by a platform backend.
+ *
+ * Combines a platform-independent error code with an optional
+ * OS-specific error value.
+ */
 struct PlatformErrorState
 {
+	/**
+     * @brief High-level, platform-agnostic error code.
+     */
 	EPlatformError platformError = EPlatformError::Success;
-	uint64_t       osError       = 0;
+
+	/**
+     * @brief OS-specific error code.
+     *
+	 * This field is only set and should only be interpreted when
+     * @ref platformError == @ref EPlatformError::InternalError.
+	 * 
+	 * Typical sources:
+     * - Windows: GetLastError(), NTSTATUS
+     * - Linux: errno
+	 */
+	uint64_t osError       = 0;
 };
 
 
