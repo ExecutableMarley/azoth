@@ -68,6 +68,11 @@ public:
 	    return Address((value + align - 1) & ~(align - 1));
     }
 
+    constexpr Address isAligned(value_type align) const noexcept
+    {
+        return value == (value & ~(align-1));
+    }
+
     // --- Comparison Operators ---
 
     constexpr bool operator==(const Address& other) const noexcept { return value == other.value; }
