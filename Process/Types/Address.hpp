@@ -89,6 +89,17 @@ public:
 
     constexpr value_type operator-(const Address& other) const noexcept { return value - other.value; }
 
+    // --- Static Factory ---
+
+    /** @brief Minimum safe user-mode address (64KB). */
+    static constexpr Address minAddr()   { return 0x10000; }
+
+    /** @brief Maximum address for 32-bit (4GB). */
+    static constexpr Address maxAddr32() { return 0xFFFFFFFF; }
+
+    /** @brief Maximum user-mode address for 64-bit (128TB). */
+    static constexpr Address maxAddr()   { return 0x7FFFFFFFFFFF; }
+
     // --- Static Helpers ---
 
     template <typename T>
