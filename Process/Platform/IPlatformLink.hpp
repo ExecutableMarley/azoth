@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Marley Arns
+ * Licensed under the MIT License.
+*/
+
 #pragma once
 
 #include <stdint.h>
@@ -13,6 +18,7 @@
 namespace Azoth
 {
 
+//Todo: All optional methods should return bool or int
 
 /**
  * @brief Platform abstraction layer for process interaction.
@@ -34,11 +40,11 @@ public:
 
 	//=== Process Specific ===//
 
-	virtual bool isAlive() const { return false; }
-	virtual bool terminate()     { return false; }
-	virtual bool suspend()       { return false; }
-	virtual bool resume()        { return false; }
-	virtual uint32_t getExitCode() const { return 0; }
+	virtual bool isAlive() const { return setError(EPlatformError::NotImplemented); }
+	virtual bool terminate()     { return setError(EPlatformError::NotImplemented); }
+	virtual bool suspend()       { return setError(EPlatformError::NotImplemented); }
+	virtual bool resume()        { return setError(EPlatformError::NotImplemented); }
+	virtual uint32_t getExitCode() const { return setError(EPlatformError::NotImplemented); }
 
 	//=== Process Images ===//
 
@@ -53,37 +59,37 @@ public:
 	virtual uint32_t getProcessIDByWindowName(const std::string& windowTitle) const = 0;
 	virtual std::vector<uint32_t> getProcessIDsByWindowName(const std::string& windowTitle) const = 0;
 
-	virtual bool getProcessName(uint32_t procID, std::string& name) const { return false; }
-	virtual bool getProcessPath(uint32_t procID, std::string& path) const { return false; }
-	virtual bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture)   const { return false; }
-	virtual bool getProcessPrivilegeLevel(uint32_t procID, EProcessPrivilegeLevel& privileges) const { return false; }
+	virtual bool getProcessName(uint32_t procID, std::string& name) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessPath(uint32_t procID, std::string& path) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture)   const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessPrivilegeLevel(uint32_t procID, EProcessPrivilegeLevel& privileges) const { return setError(EPlatformError::NotImplemented); }
 
 	//=== Memory ===//
 
-	virtual bool read(uint64_t addr, size_t size, void* buffer) const { return false; }
-	virtual bool write(uint64_t addr, size_t size, const void* buffer) { return false; }
+	virtual bool read(uint64_t addr, size_t size, void* buffer) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool write(uint64_t addr, size_t size, const void* buffer) { return setError(EPlatformError::NotImplemented); }
 
-	virtual bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const { return false; }
+	virtual bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const { return setError(EPlatformError::NotImplemented); }
 
-	virtual bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) { return false; }
+	virtual bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) { return setError(EPlatformError::NotImplemented); }
 	
-	virtual uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) { return false; }
+	virtual uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) { return setError(EPlatformError::NotImplemented); }
 	
-	virtual bool virtualFree(uint64_t addr) { return false; }
+	virtual bool virtualFree(uint64_t addr) { return setError(EPlatformError::NotImplemented); }
 
 	//=== Threads ===//
 
-	bool isThreadAlive(uint32_t threadID) { return false; }
+	bool isThreadAlive(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool suspendThread(uint32_t threadID) { return false; }
+	bool suspendThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool resumeThread(uint32_t threadID) { return false; }
+	bool resumeThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool terminateThread(uint32_t threadID) { return false; }
+	bool terminateThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool joinThread(uint32_t threadID, uint32_t timeOutMillis) { return false; }
+	bool joinThread(uint32_t threadID, uint32_t timeOutMillis) { return setError(EPlatformError::NotImplemented); }
 
-	uint32_t getThreadExitCode(uint32_t threadID) { return 0; }
+	uint32_t getThreadExitCode(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
 	//set/get context
 
