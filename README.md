@@ -21,7 +21,7 @@ code quality, portability, and maintainability.
 ### Scanning & Analysis
 - Pattern / signature scanning
 - String and value searching
-- Retrieval of loaded Process Image data
+- Retrieval of loaded process image data
 
 ### Architecture & Design
 - Fully **OS-agnostic core**
@@ -56,6 +56,8 @@ The **CProcess** class provides the main high-level interface, while the platfor
 
 
 ## Example Usage
+
+### Example 1: Generic Usage
 
 ```cpp
 #include "Platform/Windows/WinapiLink.hpp"
@@ -108,6 +110,50 @@ int main()
     {
         std::cout << "Pattern found in main image at 0x" << imageMatch << "\n";
     }
+
+    return 0;
+}
+```
+
+### Example 2: Custom Platform Backends
+
+```cpp
+#include "Process/CProcess.hpp"
+#include "Process/Platform/Windows/WinapiLink.hpp"
+
+using namespace Azoth;
+
+// Override a specific platform method from the default backend
+class MySuperiorReadImplementation : public WinapiLink
+{
+    //Override Read method with your own code
+    bool read(uint64_t addr, size_t size, void* buffer) const override
+	{
+        std::cout << "Custom read backend invoked!\n";
+
+		size_t bytesRead;
+		if (ReadProcessMemory(this->_hProcess, (LPVOID)addr, buffer, size, (SIZE_T*)&bytesRead) && bytesRead != 0)
+			return true;
+
+		return setError(EPlatformError::InternalError, GetLastError());
+	}
+};
+
+// Alternatively, provide a completely custom platform backend
+class MySuperiorImplementation : public IPlatformLink
+{
+    //.....
+};
+
+int main()
+{
+    // Using a partially overridden backend
+    MySuperiorReadImplementation myLink1;
+    CProcess process1(&myLink1);
+
+    // Using a fully custom backend
+    MySuperiorImplementation myLink2;
+    CProcess process2(&myLink2);
 
     return 0;
 }
