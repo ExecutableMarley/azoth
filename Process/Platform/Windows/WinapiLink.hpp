@@ -347,7 +347,7 @@ public:
 	//=== Threads ===//
 
 
-private:
+protected:
 	uint32_t _procID;
 	HANDLE _hProcess;
 };
