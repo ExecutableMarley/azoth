@@ -25,6 +25,20 @@ struct DecodedInstruction
 	uint64_t runtimeAddress = 0;
 };
 
+struct CompactInstruction
+{
+	uint64_t address;
+	uint8_t  length;
+
+	ZydisMnemonic mnemonic;
+
+	uint8_t operandCount;
+
+	ZydisInstructionAttributes attributes;
+
+	uint8_t bytes[15];
+};
+
 class InstructionRangeIterator
 {
 

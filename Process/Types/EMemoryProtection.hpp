@@ -55,7 +55,7 @@ constexpr bool hasFlag(EMemoryProtection value, EMemoryProtection flag)
     return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) == static_cast<uint32_t>(flag);
 }
 
-/*
+/* @class ProtectionFilter
  * @brief Fine-grained filter for matching memory protection states.
  *
  * ProtectionFilter allows expressing requirements for individual protection

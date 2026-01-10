@@ -4,6 +4,8 @@
 
 #include "../Utility/MemIn.hpp"
 
+#include <cstring>
+
 namespace Azoth
 {
 

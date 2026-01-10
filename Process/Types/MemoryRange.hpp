@@ -67,10 +67,6 @@ public:
         return MemoryRange(start, stop);
     }
 
-    //Schnitt
-    //Overlap
-
-    // Todo: Remove or replace
     static MemoryRange max_range_32bit()
     {
         return MemoryRange(Address::minAddr(), Address::maxAddr32());
