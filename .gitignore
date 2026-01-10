@@ -1,0 +1,15 @@
+# IDE
+.vscode
+
+# Build executables and temporary files
+build/
+
+# Doxygen Output
+Doxyfile
+docs/
+
+# Examples need some refactoring first
+examples/
+
+# Local stuff
+todo.txt
