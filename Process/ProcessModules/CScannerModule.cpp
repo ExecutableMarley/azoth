@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Marley Arns
+ * Licensed under the MIT License.
+*/
+
 #include "CScannerModule.hpp"
 
 #include "../CProcess.hpp"

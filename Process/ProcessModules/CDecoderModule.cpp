@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Marley Arns
+ * Licensed under the MIT License.
+*/
+
 #include "CDecoderModule.hpp"
 
 #include "../Types/EProcessArchitecture.hpp"
