@@ -78,5 +78,10 @@ private:
     HANDLE _handle = nullptr;
 };
 
+inline SmartHandle openProcessHandle(DWORD pid, DWORD desiredAccess = PROCESS_QUERY_INFORMATION | PROCESS_VM_READ)
+{
+    return SmartHandle(OpenProcess(desiredAccess, FALSE, pid));
+}
+
 
 }

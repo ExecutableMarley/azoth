@@ -44,10 +44,18 @@ PlatformErrorState retrieveAllProcessImages(uint32_t pid, std::vector<ProcessIma
 
 PlatformErrorState retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel& outLevel);
 
+PlatformErrorState retrieveProcessPrivilegeLevel(uint32_t pid, EProcessPrivilegeLevel& outLevel);
+
 PlatformErrorState retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch);
+
+PlatformErrorState retrieveProcessArchitecture(uint32_t pid, EProcessArchitecture& outArch);
 
 PlatformErrorState retrieveProcessName(HANDLE processHandle, std::string& outProcessName);
 
+PlatformErrorState retrieveProcessName(uint32_t pid, std::string& outProcessName);
+
 PlatformErrorState retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath);
+
+PlatformErrorState retrieveProcessPath(uint32_t pid, std::string& outProcessPath);
 
 }

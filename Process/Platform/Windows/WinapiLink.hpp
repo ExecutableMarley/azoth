@@ -267,22 +267,34 @@ public:
 
 	bool getProcessName(uint32_t procID, std::string& name) const override
 	{
-		return setError(retrieveProcessName(_hProcess, name));
+		if (procID == this->_procID)
+			return setError(retrieveProcessName(_hProcess, name));
+		else
+			return setError(retrieveProcessName(procID, name));
 	}
 
 	bool getProcessPath(uint32_t procID, std::string& path) const override
 	{
-		return setError(retrieveProcessPath(_hProcess, path));
+		if (procID == this->_procID)
+			return setError(retrieveProcessPath(_hProcess, path));
+		else
+			return setError(retrieveProcessName(procID, path));
 	}
 
 	bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture) const override
 	{
-		return setError(retrieveProcessArchitecture(_hProcess, architecture));
+		if (procID == this->_procID)
+			return setError(retrieveProcessArchitecture(_hProcess, architecture));
+		else
+			return setError(retrieveProcessArchitecture(procID, architecture));
 	}
 
 	bool getProcessPrivilegeLevel(uint32_t procID, EProcessPrivilegeLevel& privileges) const override
 	{
-		return setError(retrieveProcessPrivilegeLevel(_hProcess, privileges));
+		if (procID == this->_procID)
+			return setError(retrieveProcessPrivilegeLevel(_hProcess, privileges));
+		else
+			return setError(retrieveProcessPrivilegeLevel(procID, privileges));
 	}
 
 	//=== Memory ===//

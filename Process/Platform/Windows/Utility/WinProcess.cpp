@@ -408,6 +408,15 @@ PlatformErrorState retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessP
 	return { EPlatformError::Success, 0 };
 }
 
+PlatformErrorState retrieveProcessPrivilegeLevel(uint32_t pid, EProcessPrivilegeLevel& outLevel)
+{
+	SmartHandle handle = openProcessHandle(pid);
+    if (!handle.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+
+	return retrieveProcessPrivilegeLevel(handle, outLevel);
+}
+
 PlatformErrorState retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch)
 {
     outArch = EProcessArchitecture::Unknown;
@@ -459,6 +468,15 @@ PlatformErrorState retrieveProcessArchitecture(HANDLE processHandle, EProcessArc
     return { EPlatformError::Success, 0 };
 }
 
+PlatformErrorState retrieveProcessArchitecture(uint32_t pid, EProcessArchitecture& outArch)
+{
+	SmartHandle handle = openProcessHandle(pid);
+    if (!handle.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+
+    return retrieveProcessArchitecture(handle, outArch);
+}
+
 PlatformErrorState retrieveProcessName(HANDLE processHandle, std::string& outProcessName)
 {
     outProcessName.clear();
@@ -477,6 +495,15 @@ PlatformErrorState retrieveProcessName(HANDLE processHandle, std::string& outPro
     return { EPlatformError::Success, 0 };
 }
 
+PlatformErrorState retrieveProcessName(uint32_t pid, std::string& outProcessName)
+{
+	SmartHandle handle = openProcessHandle(pid);
+    if (!handle.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+
+    return retrieveProcessName(handle, outProcessName);
+}
+
 PlatformErrorState retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath)
 {
     outProcessPath.clear();
@@ -492,6 +519,15 @@ PlatformErrorState retrieveProcessPath(HANDLE processHandle, std::string& outPro
 
     outProcessPath.assign(buffer, size);
     return { EPlatformError::Success, 0 };
+}
+
+PlatformErrorState retrieveProcessPath(uint32_t pid, std::string& outProcessPath)
+{
+	SmartHandle handle = openProcessHandle(pid);
+    if (!handle.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+
+    return retrieveProcessPath(handle, outProcessPath);
 }
 
 
