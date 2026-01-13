@@ -148,6 +148,8 @@ public:
 		return this->readString(addr, size);
 	}
 
+     bool readPtr(uint64_t addr, uint64_t& out);
+
 	//=== Write Memory ===//
 
     /**
