@@ -79,7 +79,7 @@ PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vec
 // NtQuerySystemInformation
 using fnNtQuerySystemInformation = decltype(&NtQuerySystemInformation);
 
-bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id)
+PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id)
 {
 	out_process_id = 0;
 
@@ -87,12 +87,12 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& 
 	std::wstring wprocess_name_lower = StringUtil::to_lower(wprocess_name);
 
 	HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-	if (!ntdll) return false;
+	if (!ntdll) return { EPlatformError::SymbolNotFound, 0 };
 
 	fnNtQuerySystemInformation NtQuerySystemInformation =
 		(fnNtQuerySystemInformation)GetProcAddress(ntdll, "NtQuerySystemInformation");
 
-	if (!NtQuerySystemInformation) return false;
+	if (!NtQuerySystemInformation) return { EPlatformError::SymbolNotFound, 0 };
 
 	ULONG size = 0x10000; // (64KB)
 	NTSTATUS status;
@@ -114,7 +114,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& 
 		// 0xC0000004 or 0xC0000008
 		if (status == STATUS_INFO_LENGTH_MISMATCH || status == 0xC0000008)
 		{
-			if (size > 0x1000000) return false; // Safety (16MB)
+			if (size > 0x1000000) return { EPlatformError::InternalError, (uint64_t)status }; // Safety (16MB)
 			continue;
 		}
 
@@ -124,7 +124,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& 
 
 	if (!NT_SUCCESS(status))
 	{
-		return false; // Unrecoverable
+		return { EPlatformError::InternalError, (uint64_t)status }; // Unrecoverable
 	}
 
 	SYSTEM_PROCESS_INFORMATION* current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(system_information_buffer.data());
@@ -140,7 +140,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& 
 			if (current_image_name_lower == wprocess_name_lower)
 			{
 				out_process_id = (uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
-				return true;
+				return { EPlatformError::Success, 0 };
 			}
 		}
 
@@ -157,10 +157,10 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& 
 	}
 
 	// In this case the process simply did not exist
-	return true;
+	return { EPlatformError::ResourceNotFound, 0 };
 }
 
-bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& process_ids)
+PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& process_ids)
 {
 	process_ids.clear();
 
@@ -168,12 +168,12 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 	std::wstring wprocess_name_lower = StringUtil::to_lower(wprocess_name);
 
 	HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-	if (!ntdll) return false;
+	if (!ntdll) return { EPlatformError::SymbolNotFound, 0 };
 
 	fnNtQuerySystemInformation NtQuerySystemInformation =
 		(fnNtQuerySystemInformation)GetProcAddress(ntdll, "NtQuerySystemInformation");
 
-	if (!NtQuerySystemInformation) return false;
+	if (!NtQuerySystemInformation) return { EPlatformError::SymbolNotFound, 0 };
 
 	ULONG size = 0x10000; // (64KB)
 	NTSTATUS status;
@@ -195,7 +195,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 		// 0xC0000004 or 0xC0000008
 		if (status == STATUS_INFO_LENGTH_MISMATCH || status == 0xC0000008)
 		{
-			if (size > 0x1000000) return false; // Safety (16MB)
+			if (size > 0x1000000) return { EPlatformError::InternalError, (uint64_t)status }; // Safety (16MB)
 			continue;
 		}
 
@@ -205,7 +205,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 
 	if (!NT_SUCCESS(status))
 	{
-		return false; // Unrecoverable
+		return { EPlatformError::InternalError, (uint64_t)status }; // Unrecoverable
 	}
 
 	SYSTEM_PROCESS_INFORMATION* current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(system_information_buffer.data());
@@ -222,7 +222,7 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 			{
 				process_ids.push_back((uint64_t)(ULONG_PTR)current_info->UniqueProcessId);
 				//out_process_id = (uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
-				return true;
+				return { EPlatformError::Success, 0 };
 			}
 		}
 
@@ -238,8 +238,10 @@ bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vecto
 			);
 	}
 
-	// In this case the process simply did not exist
-	return true;
+	if (process_ids.empty())
+		return { EPlatformError::ResourceNotFound, 0};
+	else
+		return { EPlatformError::Success, 0 };
 }
 
 PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, uint32_t& out_process_id)

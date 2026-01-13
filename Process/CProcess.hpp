@@ -200,7 +200,9 @@ public:
 	 */
 	ProcessImage getProcessMainImage()
 	{
-		return _platformLink->getMainProcessImage();
+		ProcessImage procImage;
+		_platformLink->getMainProcessImage(procImage);
+		return procImage;
 	}
 
 	/**
@@ -210,7 +212,9 @@ public:
 	 */
 	ProcessImage getProcessImage(const std::string& name)
 	{
-		return _platformLink->getProcessImage(name);
+		ProcessImage procImage;
+		_platformLink->getProcessImage(name, procImage);
+		return procImage;
 	}
 
 	/**
@@ -218,7 +222,9 @@ public:
 	 */
 	std::vector<ProcessImage> getAllProcessImages()
 	{
-		return _platformLink->getAllProcessImages();
+		std::vector<ProcessImage> procImages;
+		_platformLink->getAllProcessImages(procImages);
+		return procImages;
 	}
 
 	//ImageSymbols?

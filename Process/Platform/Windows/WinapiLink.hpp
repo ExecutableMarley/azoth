@@ -153,116 +153,36 @@ public:
 
 	//=== Process Images ===//
 
-	ProcessImage getMainProcessImage() const override
+	bool getMainProcessImage(ProcessImage& processImage) const override
 	{
-		HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, this->_procID);
-		if (MODULEENTRY32 mEntry; Module32First(hSnap, &mEntry))
-		{
-			CloseHandle(hSnap);
-			return fromWinModule(mEntry);
-		}
-		CloseHandle(hSnap);
-		return ProcessImage();
+		return setError(retrieveProcessMainImage(this->_procID, processImage));
 	}
 
-	ProcessImage getProcessImage(const std::string& name) const override
+	bool getProcessImage(const std::string& name, ProcessImage& processImage) const override
 	{
-		HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, this->_procID);
-		MODULEENTRY32 mEntry;
-		mEntry.dwSize = sizeof(mEntry);
-        
-		if (Module32First(hSnap, &mEntry))
-		{
-			do
-			{
-				if (!strcmp(mEntry.szModule, name.c_str()))
-				{
-					CloseHandle(hSnap);
-					return fromWinModule(mEntry);
-				}
-			} while (Module32Next(hSnap, &mEntry));
-		}
-		CloseHandle(hSnap);
-		return ProcessImage();
+		return setError(retrieveProcessImage(this->_procID, name, processImage));
 	}
 
-	std::vector<ProcessImage> getAllProcessImages() const override
+	bool getAllProcessImages(std::vector<ProcessImage>& processImages) const override
 	{
-		std::vector<ProcessImage> moduleList;
-
-		HANDLE hModule = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, this->_procID);
-		MODULEENTRY32 moduleEntry;
-		moduleEntry.dwSize = sizeof(tagMODULEENTRY32);
-
-		if (Module32First(hModule, &moduleEntry))
-		{
-			do
-			{
-				moduleList.push_back(fromWinModule(moduleEntry));
-			} while (Module32Next(hModule, &moduleEntry));
-		}
-		CloseHandle(hModule);
-		return moduleList;
+		return setError(retrieveAllProcessImages(this->_procID, processImages));
 	}
 
 	//=== Process Query ===//
 
-	uint32_t getProcessIDByName(const std::string& name) const override
+	bool getProcessIDByName(const std::string& name, uint32_t& procID) const override
 	{
-		HANDLE toolSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-		PROCESSENTRY32 pEntry;
-		pEntry.dwSize = sizeof(pEntry);
-		pEntry.th32ProcessID = 0;
-
-		if (!Process32First(toolSnapshot, &pEntry))
-			return 0;
-		do
-		{
-			//Performs an ordinal Comparison, returns false (0) if equal
-			if (!strcmp(pEntry.szExeFile, name.c_str()))
-			{
-				CloseHandle(toolSnapshot);
-				return pEntry.th32ProcessID;
-			}
-		} while (Process32Next(toolSnapshot, &pEntry));
-		return 0;
+		return setError(retrieveProcessIDByName(name, procID));
 	}
 
-	std::vector<uint32_t> getProcessIDsByName(const std::string& name) const override
+	bool getProcessIDsByName(const std::string& name, std::vector<uint32_t>& procIDs) const override
 	{
-		HANDLE toolSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-		PROCESSENTRY32 pEntry;
-		pEntry.dwSize = sizeof(pEntry);
-		pEntry.th32ProcessID = 0;
-		std::vector<uint32_t> ids;
-
-		if (!Process32First(toolSnapshot, &pEntry))
-		{
-			CloseHandle(toolSnapshot);
-			return ids;
-		}
-		do
-		{
-			//Performs an ordinal Comparison, returns false (0) if equal
-			if (!strcmp(pEntry.szExeFile, name.c_str()))
-			{
-				ids.push_back(pEntry.th32ProcessID);
-			}
-		} while (Process32Next(toolSnapshot, &pEntry));
-		CloseHandle(toolSnapshot);
-		return ids;
+		return setError(retrieveProcessIDByName(name, procIDs));
 	}
 
-	uint32_t getProcessIDByWindowName(const std::string& windowTitle) const override
+	bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const override
 	{
-		uint32_t procID;
-		retrieveProcessIDByWindowName(windowTitle, procID);
-		return procID;
-	}
-
-	std::vector<uint32_t> getProcessIDsByWindowName(const std::string& windowTitle) const override
-	{
-		return {};
+		return setError(retrieveProcessIDByWindowName(windowTitle, procID));
 	}
 
 	bool getProcessName(uint32_t procID, std::string& name) const override

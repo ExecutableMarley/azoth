@@ -26,9 +26,9 @@ PlatformErrorState retrieveProcessIDByName(const std::string& procName, uint32_t
 
 PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<uint32_t>& out_process_ids);
 
-bool retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id);
+PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id);
 
-bool retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& out_process_ids);
+PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& out_process_ids);
 
 PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, uint32_t& out_process_id);
 

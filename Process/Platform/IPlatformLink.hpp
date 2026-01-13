@@ -48,16 +48,15 @@ public:
 
 	//=== Process Images ===//
 
-	virtual ProcessImage getMainProcessImage() const { return ProcessImage(); };
-	virtual ProcessImage getProcessImage(const std::string& name) const { return ProcessImage(); };
-	virtual std::vector<ProcessImage> getAllProcessImages() const { return {}; }
+	virtual bool getMainProcessImage(ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); };
+	virtual bool getProcessImage(const std::string& name, ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); };
+	virtual bool getAllProcessImages(std::vector<ProcessImage>& processImages) const { return setError(EPlatformError::NotImplemented); }
 
 	//=== Process Query ===//
 
-	virtual uint32_t getProcessIDByName(const std::string& name) const = 0;
-	virtual std::vector<uint32_t> getProcessIDsByName(const std::string& name) const = 0;
-	virtual uint32_t getProcessIDByWindowName(const std::string& windowTitle) const = 0;
-	virtual std::vector<uint32_t> getProcessIDsByWindowName(const std::string& windowTitle) const = 0;
+	virtual bool getProcessIDByName(const std::string& name, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); };
+	virtual bool getProcessIDsByName(const std::string& name, std::vector<uint32_t>& procIDs) const { return setError(EPlatformError::NotImplemented); };
+	virtual bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); };
 
 	virtual bool getProcessName(uint32_t procID, std::string& name) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getProcessPath(uint32_t procID, std::string& path) const { return setError(EPlatformError::NotImplemented); }
@@ -79,17 +78,17 @@ public:
 
 	//=== Threads ===//
 
-	bool isThreadAlive(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
+	virtual bool isThreadAlive(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool suspendThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
+	virtual bool suspendThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool resumeThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
+	virtual bool resumeThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool terminateThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
+	virtual bool terminateThread(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
-	bool joinThread(uint32_t threadID, uint32_t timeOutMillis) { return setError(EPlatformError::NotImplemented); }
+	virtual bool joinThread(uint32_t threadID, uint32_t timeOutMillis) { return setError(EPlatformError::NotImplemented); }
 
-	uint32_t getThreadExitCode(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
+	virtual uint32_t getThreadExitCode(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
 
 	//set/get context
 
