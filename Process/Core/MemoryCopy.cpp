@@ -28,7 +28,7 @@ MemoryCopy::MemoryCopy()
 MemoryCopy::MemoryCopy(CMemoryModule* mem, uint64_t addr, size_t size)
 {
     this->_memory     = mem;
-    this->_chainAddr  = PointerEndpoint(NULL, addr);
+    this->_chainAddr  = PointerEndpoint(addr);
     this->_size       = size;
     this->_buffer     = std::make_unique<BYTE[]>(size);
     this->_bufferSize = size;
@@ -52,7 +52,7 @@ bool MemoryCopy::valid() const
 
 void MemoryCopy::setAddress(uint64_t addr)
 {
-    this->_chainAddr = PointerEndpoint(NULL, addr);
+    this->_chainAddr = PointerEndpoint(addr);
 }
 
 void MemoryCopy::setAddress(PointerEndpoint chainAddr)
@@ -91,7 +91,7 @@ bool MemoryCopy::readIn(uint64_t addr, size_t size)
         if (size > this->_bufferSize)
             resize(size);
     }
-    this->_chainAddr = PointerEndpoint(NULL, addr);
+    this->_chainAddr = PointerEndpoint(addr);
     return readIn();
 }
 
@@ -117,7 +117,7 @@ bool MemoryCopy::writeBack()
 
 bool MemoryCopy::writeBack(uint64_t addr)
 {
-    this->_chainAddr = PointerEndpoint(NULL, addr);
+    this->_chainAddr = PointerEndpoint(addr);
     return writeBack();
 }
 

@@ -12,43 +12,49 @@ namespace Azoth
 
 
 //
-void PtrChainLink::update()
+void PtrChainLink::update(CMemoryModule& mem, std::chrono::milliseconds cacheDuration)
 {
+    Address base = 0;
     if (_parent)
-        _mem->read(_parent->get() + _addr, this->_ptr);
-    else
-        _mem->read(_addr, this->_ptr);
+    {
+        base = _parent->get(mem, cacheDuration);
+    }
 
-    //_timer.reset();
+    const uint64_t address = base + _addr;
+
+    //ReadPtr
+    bool success = mem.readPtr(address, _ptr);
+
+    _lastUpdate = clock::now();
 }
 
 //
-uint64_t PtrChainLink::get()
+uint64_t PtrChainLink::get(CMemoryModule& mem, std::chrono::milliseconds cacheDuration)
 {
-    bool isTarget64Bit = true;
+    const auto now = clock::now();
 
-    if (_parent)
+    if (_lastUpdate.time_since_epoch().count() == 0 ||
+        now - _lastUpdate >= cacheDuration)
     {
-        if (true)
-        //if (_timer.checkReset(_mem->getPtrChainCacheDuration()))
-            _mem->read(_parent->get() + _addr, isTarget64Bit ? 0x08 : 0x04, &_ptr);
-        return _ptr;
+        update(mem, cacheDuration);
     }
-    else
-    {
-        if (true)
-        //if (_timer.checkReset(_mem->getPtrChainCacheDuration()))
-            _mem->read(_addr, isTarget64Bit ? 0x08 : 0x04, &_ptr);
-        return _ptr;
-    }
+
+    return _ptr;
 }
 
-//
+uint64_t PointerEndpoint::get(std::chrono::milliseconds cacheDuration) const
+{
+    assert((bool)_mem != (bool)_previous);
+    if (_mem && _previous)
+    {
+        return _previous->get(*_mem, cacheDuration) + _addOffset;
+    }
+    return _addOffset;
+}
+
 uint64_t PointerEndpoint::get() const
 {
-    if (_previous)
-        return _previous->get() + _addOffset;
-    return _addOffset;
+    return this->get(std::chrono::milliseconds(10));
 }
 
 

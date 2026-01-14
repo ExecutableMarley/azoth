@@ -6,7 +6,8 @@
 #pragma once
 
 #include <stdint.h>
-
+#include <chrono>
+#include <cassert>
 
 namespace Azoth
 {
@@ -16,46 +17,54 @@ class CMemoryModule;
 
 class PtrChainLink
 {
+	friend class CMemoryModule;
 public:
-	PtrChainLink(CMemoryModule* mem, uint64_t addr)
-	{
-		this->_mem = _mem;
-		this->_parent = 0;
-		this->_addr = addr;
-		this->_ptr = 0;
-		//Timer
-	}
+	using clock = std::chrono::steady_clock;
 
-	PtrChainLink(CMemoryModule* mem, PtrChainLink* parent, uint64_t addr)
-	{
-		this->_mem = mem;
-		this->_parent = parent;
-		this->_addr = addr;
-		this->_ptr = 0;
-		//this->_timer = CTimer();
-		//this->update();
-	}
+	PtrChainLink(const PtrChainLink&) = delete;
+	PtrChainLink& operator=(const PtrChainLink&) = delete;
+	PtrChainLink(PtrChainLink&&) = delete;
+	PtrChainLink& operator=(PtrChainLink&&) = delete;
 
-	PtrChainLink* getParent() const
-	{
-		return this->_parent;
-	}
+protected:
+	PtrChainLink(uint64_t addr) noexcept
+        : _parent(nullptr), _addr(addr) {}
 
-	uint64_t getAddr() const
-	{
-		return this->_addr;
-	}
+    PtrChainLink(PtrChainLink* parent, uint64_t addr) noexcept
+        : _parent(parent), _addr(addr)
+		{
+			if (_parent)
+            	_parent->addChild();
+		}
 
-	void update();
+	~PtrChainLink()
+    {
+		assert(_childCount == 0 && "Destroying node with active children");
+        if (_parent)
+            _parent->removeChild();
+    }
 
-	uint64_t get();
+public:
+	PtrChainLink* parent() const noexcept { return _parent; }
+	uint64_t      offset() const noexcept { return _addr; }
+
+	uint64_t get(CMemoryModule& mem, std::chrono::milliseconds cacheDuration);
+
+	bool hasChildren()    const noexcept { return _childCount > 0; }
+	uint32_t childCount() const noexcept { return _childCount; }
 
 private:
-	CMemoryModule* _mem;
-	PtrChainLink*  _parent;
-	uint64_t       _addr;
-	uint64_t       _ptr;
-	//CTimer        _timer;
+	void update(CMemoryModule& mem, std::chrono::milliseconds cacheDuration);
+
+	void addChild()    noexcept { ++_childCount; }
+    void removeChild() noexcept { --_childCount; }
+
+private:
+	PtrChainLink*  _parent = 0;
+	uint64_t       _addr   = 0;
+	uint64_t       _ptr    = 0;
+	clock::time_point _lastUpdate{};
+	uint32_t   _childCount = 0;
 };
 
 
@@ -66,24 +75,19 @@ private:
 class PointerEndpoint
 {
 public:
-	PointerEndpoint()
-	{
-		this->_previous = 0;
-		this->_addOffset = 0;
-	}
+	PointerEndpoint() noexcept = default;
 
-	PointerEndpoint(uint64_t addOffset)
-	{
-		this->_previous = 0;
-		this->_addOffset = addOffset;
-	}
+	PointerEndpoint(uint64_t absoluteAddr) noexcept
+		: _addOffset(absoluteAddr) {}
 
-	PointerEndpoint(PtrChainLink* previous, uint64_t addOffset = 0)
-	{
-		this->_previous = previous;
-		this->_addOffset = addOffset;
-	}
+protected:
+	PointerEndpoint(CMemoryModule* mem, PtrChainLink* previous, uint64_t addOffset = 0) noexcept
+		: _mem(mem), _previous(previous), _addOffset(addOffset)
+		{
 
+		}
+
+public:
 	bool valid() const
 	{
 		return this->_previous || this->_addOffset;
@@ -94,6 +98,8 @@ public:
 		return this->_previous != nullptr;
 	}
 
+	uint64_t get(std::chrono::milliseconds cacheDuration) const;
+
 	uint64_t get() const;
 
 	operator uint64_t() const
@@ -102,8 +108,9 @@ public:
 	}
 
 private:
-	PtrChainLink* _previous;
-	uint64_t      _addOffset;
+	CMemoryModule* _mem      = nullptr;
+	PtrChainLink*  _previous = nullptr;
+	uint64_t      _addOffset = 0;
 };
 
 
