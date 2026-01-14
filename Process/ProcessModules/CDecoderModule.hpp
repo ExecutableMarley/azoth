@@ -11,13 +11,15 @@
 #include <cstring>
 #include <vector>
 #include <optional>
-
+#include <ostream>
+#include <sstream>
 
 namespace Azoth
 {
 
 
 class CProcess;
+class CDecoderModule;
 
 struct DecoderConfig
 {
@@ -31,34 +33,66 @@ struct DecodedInstruction
 	uint64_t runtimeAddress = 0;
 };
 
-struct CompactInstruction //40 Bytes
+/**
+ * @brief Compact representation of a decoded x86/x64 instruction.
+ *
+ * Size: 40 bytes (padded on 64-bit platforms)
+ */
+struct CompactInstruction
 {
+	/** @brief Runtime address of the instruction (RIP/EIP at decode time). */
     uint64_t address;     // Instruction runtime address
+	
 	uint64_t attributes;  // ZydisInstructionAttributes
 	//Consider compressing attribute
 
-    uint16_t mnemonic;      // ZydisMnemonic (fits in 16-bit)
-	uint8_t raw_bytes[15];  // Instruction bytes (up to 15 for x86/x64)
+	/**
+     * @brief Instruction mnemonic (ZydisMnemonic).
+     *
+     * ZYDIS_MNEMONIC_INVALID indicates an uninitialized or invalid instruction.
+     */
+    uint16_t mnemonic = ZYDIS_MNEMONIC_INVALID;
+
+	/**
+     * Raw instruction bytes.
+	 * 
+     * Only the first @ref meta.length bytes are valid.
+	 * 
+	 * @note x86/x64 instructions are at most 15 bytes long.
+     */
+	uint8_t raw_bytes[15];
 	//Consider 16 bytes since it gets padded anyways
 
     // Metadata packed in 32-bit
     struct Meta
     {
-        uint32_t length        : 4;  // instruction length (max 15 bytes)
-        uint32_t operand_count : 4;  // number of operands (max 10)
-        uint32_t category      : 8;  // ZydisInstructionCategory (8 Bits)
+		/** Instruction length in bytes (1–15). */
+        uint32_t length        : 4;
+
+		/** Number of explicit operands (0–10). */
+        uint32_t operand_count : 4;
+
+		/** Instruction category (ZydisInstructionCategory). */
+        uint32_t category      : 8;
+
+		/** Reserved */
         uint32_t placeholder   : 16; //
     } meta;
 
     // ----- Helpers -----
 
-    // Get length of the instruction
+	/**
+     * @brief Check whether this instruction contains valid decoded data.
+     */
+	bool isValid() const { return mnemonic != ZYDIS_MNEMONIC_INVALID; }
+
+    /** @brief Get the length of the instruction in bytes. */
     uint8_t length() const { return static_cast<uint8_t>(meta.length); }
 
-    // Get number of operands
+    /** @brief Get the number of explicit operands. */
     uint8_t operands() const { return static_cast<uint8_t>(meta.operand_count); }
 
-    // Get category
+    /** @brief Get the instruction category. */
     ZydisInstructionCategory category() const { return static_cast<ZydisInstructionCategory>(meta.category); }
 
     // Check if attribute flag is set
@@ -89,7 +123,7 @@ struct CompactInstruction //40 Bytes
 	}
 
 	bool is_relative() const {
-		return attributes == ZYDIS_ATTRIB_IS_RELATIVE;
+		return (attributes & ZYDIS_ATTRIB_IS_RELATIVE) != 0;
 	}
 
     void fromZydis(const ZydisDecodedInstruction& instr, const uint8_t* bytes, uint64_t addr)
@@ -105,14 +139,96 @@ struct CompactInstruction //40 Bytes
     }
 };
 
-class InstructionRangeIterator
+class InstructionOperands
 {
+public:
+	static constexpr size_t MaxOperands = 10;
 
+	//Consider wrap around helper class
+	ZydisDecodedOperand operands[MaxOperands];
+
+	size_t count = 0;
+
+	void reset() { count = 0; }
+
+	ZydisDecodedOperand& operator[](size_t index)
+	{
+		return operands[index];
+	}
+};
+
+class InstructionIterator
+{
+public:
+    using value_type = CompactInstruction;
+    using reference  = const CompactInstruction&;
+    using pointer    = const CompactInstruction*;
+    using iterator_category = std::input_iterator_tag;
+
+    InstructionIterator() = default;
+
+    InstructionIterator(CDecoderModule* decoder, const uint8_t* buffer, size_t size, uint64_t addr)
+        : _decoder(decoder), _buffer(buffer), _size(size), _addr(addr)
+    {
+        ++(*this); // decode first
+    }
+
+    reference operator*() const { return _current; }
+
+    pointer   operator->() const { return &_current; }
+
+    InstructionIterator& operator++();
+
+    bool operator==(const InstructionIterator& other) const;
+
+    bool operator!=(const InstructionIterator& other) const
+    {
+        return !(*this == other);
+    }
+
+private:
+    CDecoderModule* _decoder = nullptr;
+    const uint8_t*  _buffer  = nullptr;
+    size_t          _size    = 0;
+    uint64_t        _addr    = 0;
+    CompactInstruction _current{};
+};
+
+class InstructionRange
+{
+public:
+    InstructionRange(CDecoderModule* decoder, const uint8_t* buffer, size_t size, uint64_t addr)
+        : _decoder(decoder), _buffer(buffer), _size(size), _addr(addr) {}
+
+    InstructionIterator begin()
+    {
+        return InstructionIterator(_decoder, _buffer, _size, _addr);
+    }
+
+    InstructionIterator end()
+    {
+        return InstructionIterator();
+    }
+
+private:
+    CDecoderModule* _decoder;
+    const uint8_t*  _buffer;
+    size_t          _size;
+    uint64_t        _addr;
 };
 
 
 class CDecoderModule
 {
+	struct FormatterProxy {
+        const CDecoderModule& module;
+        const CompactInstruction& ci;
+
+		//Proxy operator
+        friend std::ostream& operator<<(std::ostream& os, const FormatterProxy& proxy) {
+            return proxy.module.formatInstruction(os, proxy.ci);
+        }
+    };
 public:
     CDecoderModule(CProcess* backPtr);
 
@@ -122,15 +238,15 @@ public:
     CDecoderModule& operator=(const CDecoderModule&) = delete;
 
 public:
-    bool decodeAt(const uint8_t* buffer, size_t size, CompactInstruction& d, uint64_t runtimeAddr)
+    bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, CompactInstruction& out)
 	{
 		ZydisDecodedInstruction instr{};
-		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, NULL, buffer, size, &instr)))
+		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &instr)))
 		{
 			return false;
 		}
 
-		d.fromZydis(instr, buffer, runtimeAddr);
+		out.fromZydis(instr, buffer, runtimeAddr);
 		return true;
 	}
 
@@ -151,11 +267,20 @@ public:
     	return true;
 	}
 
-	//Consider Modern for loop iterators.
-    InstructionRangeIterator range();
+	//Iterator support
+    InstructionRange range(const uint8_t* buffer, size_t size, uint64_t addr)
+	{
+		return InstructionRange(this, buffer, size, addr);
+	}
 
-    std::vector<CompactInstruction> decodeRange(const uint8_t* buffer, size_t size, uint64_t baseAddr, const std::string& separator = "\n");
+	bool decodeOperands(const CompactInstruction& instr, InstructionOperands& out)
+	{
+		ZydisDecodedInstruction zydisInstruction;
+		if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, instr.raw_bytes, sizeof(instr.raw_bytes), &zydisInstruction, out.operands)))
+			return false;
 
+		return true;
+	}
 
 	uint64_t decodeAbsoluteMemoryAddress(const uint8_t* buffer, size_t bufferSize, uint64_t runtimeAddress, int operandIndex = -1)
 	{
@@ -194,26 +319,14 @@ public:
 		return absAddr;
 	}
 
-    std::string formatInstruction(const CompactInstruction& instr) const
-	{
-		ZydisDecodedInstruction instruction;
-        ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
+	std::ostream& formatInstruction(std::ostream& os, const CompactInstruction& instr) const;
 
-		if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, instr.raw_bytes, sizeof(instr.raw_bytes), &instruction, operands)))
-			return 0;
+    std::string formatInstruction(const CompactInstruction& instr) const;
 
-		char szBuffer[64];
-		if (ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instruction, operands, 
-            instruction.operand_count, szBuffer, sizeof(szBuffer), instr.address, ZYAN_NULL)))
-            {
-                return std::string(szBuffer);
-            }
-		return "";
-	}
-
-    std::string formatRange(const std::vector<CompactInstruction>& instrs, const std::string& separator = "\n") const;
-
-    InstructionRangeIterator createIterator(const uint8_t* buffer, size_t size, uint64_t baseAddr) const;
+	//Slightly more convenient << use
+	FormatterProxy wrap(const CompactInstruction& ci) const {
+        return { *this, ci };
+    }
 
 private:
 	CProcess*      _backPtr; 
