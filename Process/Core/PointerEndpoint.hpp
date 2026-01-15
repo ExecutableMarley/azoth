@@ -70,13 +70,24 @@ private:
 
 /**
  * @class PointerEndpoint
- * @brief Represents the end of a pointer chain in memory.
+ * @brief Represents the end address of a pointer chain or a fixed absolute address.
+ * 
+ * Complex endpoints can only be constructed by @ref CMemoryModule, which owns and manages
+ * the underlying @ref PtrChainLink nodes and their caching behavior.
  */
 class PointerEndpoint
 {
 public:
 	PointerEndpoint() noexcept = default;
 
+	/**
+	 * @brief Constructs a simple endpoint representing an absolute address.
+	 *
+	 * This constructor creates a non-complex endpoint that does not perform any
+	 * pointer follow logic.
+	 *
+	 * @param absoluteAddr Absolute address in the target address space.
+	 */
 	PointerEndpoint(uint64_t absoluteAddr) noexcept
 		: _addOffset(absoluteAddr) {}
 
@@ -88,20 +99,52 @@ protected:
 		}
 
 public:
+
+	/**
+	 * @brief Checks whether this endpoint represents a usable address.
+	 *
+	 * @return True if the endpoint is either bound to a pointer chain or represents
+	 *         a non-zero absolute address.
+	 */
 	bool valid() const
 	{
+		//_previous node should also return a non 0 result
 		return this->_previous || this->_addOffset;
 	}
 
+	/**
+	 * @brief Checks whether this endpoint is backed by a pointer chain.
+	 *
+	 * @return True if the endpoint resolves its address via pointer dereferencing,
+	 *         false if it represents a simple absolute address.
+	 */
 	bool isComplex() const
 	{
 		return this->_previous != nullptr;
 	}
 
+	/**
+	 * @brief Resolves the final address using a custom cache duration.
+	 *
+	 * @param[in] cacheDuration Maximum allowed age of cached pointer values.
+	 * @return Resolved final address.
+	 */
 	uint64_t get(std::chrono::milliseconds cacheDuration) const;
 
+	/**
+	 * @brief Resolves the final address using the default cache duration.
+	 *
+	 * The cache duration configured in the owning @ref CMemoryModule is used.
+	 *
+	 * @return Resolved final address.
+	 */
 	uint64_t get() const;
 
+	/**
+	 * @brief Implicit conversion to the resolved address.
+	 *
+	 * Equivalent to calling @ref get() with the default cache duration.
+	 */
 	operator uint64_t() const
 	{
 		return this->get();
@@ -110,7 +153,7 @@ public:
 private:
 	CMemoryModule* _mem      = nullptr;
 	PtrChainLink*  _previous = nullptr;
-	uint64_t      _addOffset = 0;
+	uint64_t       _addOffset = 0;
 };
 
 
