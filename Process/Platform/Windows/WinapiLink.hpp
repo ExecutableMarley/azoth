@@ -240,7 +240,7 @@ public:
 	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const override
 	{
 		MEMORY_BASIC_INFORMATION mbi{};
-		if (VirtualQueryEx(this->_hProcess, (LPVOID)addr, &mbi, sizeof(mbi)) == 0)
+		if (VirtualQueryEx(this->_hProcess, (LPVOID)addr, &mbi, sizeof(mbi)) != 0)
 		{
 			memoryRegion = fromWinBasicInformation(mbi);
 			return true;
