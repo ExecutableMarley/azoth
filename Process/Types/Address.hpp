@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 #include <cstdint>
+#include <ostream>
+#include <sstream>
 #include <iomanip>
 
 namespace Azoth
@@ -41,7 +43,7 @@ public:
     constexpr operator value_type() const noexcept { return value; }
 
     /** @brief Explicitly converts to a local pointer. */
-    explicit operator void* () const noexcept
+    explicit operator void*() const noexcept
     {
 	    return reinterpret_cast<void*>(value);
     }
@@ -106,6 +108,14 @@ public:
     /** @brief Maximum user-mode address for 64-bit (128TB). */
     static constexpr Address maxAddr()   { return 0x7FFFFFFFFFFF; }
 
+    // --- Static Factories ---
+
+    /** @brief Returns a null (zero) address. */
+    static constexpr Address null() noexcept
+    {
+        return Address{};
+    }
+
     // --- Static Helpers ---
 
     template <typename T>
@@ -131,6 +141,13 @@ public:
     }
 };
 
+/**
+ * @brief Stream insertion operator for Address objects.
+ *
+ * @param os    Output stream.
+ * @param addr  Memory Address to print.
+ * @return Reference to the output stream.
+ */
 inline std::ostream& operator<<(std::ostream& os, const Address& addr)
 {
     const auto oldFlags = os.flags();
@@ -146,5 +163,21 @@ inline std::ostream& operator<<(std::ostream& os, const Address& addr)
     os.fill(oldFill);
     return os;
 }
+
+/**
+ * @brief Convert a Address to a string.
+ *
+ * This is a convenience wrapper around the stream insertion operator.
+ *
+ * @param addr Address to convert.
+ * @return String representation of the Address.
+ */
+inline std::string to_string(const Address& addr)
+{
+    std::ostringstream oss;
+    oss << addr;
+    return oss.str();
+}
+
 
 } // namespace Azoth
