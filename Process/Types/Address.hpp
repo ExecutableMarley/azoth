@@ -76,7 +76,7 @@ public:
 	    return Address((value + align - 1) & ~(align - 1));
     }
 
-    constexpr Address isAligned(value_type align) const noexcept
+    constexpr bool isAligned(value_type align) const noexcept
     {
         return value == (value & ~(align-1));
     }
