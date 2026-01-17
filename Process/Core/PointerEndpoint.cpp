@@ -12,24 +12,31 @@ namespace Azoth
 
 
 //
-void PtrChainLink::update(CMemoryModule& mem, std::chrono::milliseconds cacheDuration)
+bool PtrChainLink::update(CMemoryModule& mem, std::chrono::milliseconds cacheDuration)
 {
-    Address base = 0;
-    if (_parent)
+    Address base = _parent ? _parent->get(mem, cacheDuration) : Address::null();
+
+    if (_parent && !base)
     {
-        base = _parent->get(mem, cacheDuration);
+        _ptr = Address::null();
+        return false;
     }
 
-    const uint64_t address = base + _addr;
+    const Address address = base + _addr;
 
-    //ReadPtr
-    bool success = mem.readPtr(address, _ptr);
+    if (!mem.readPtr(address, _ptr))
+    {
+        _ptr = Address::null();
+        _lastUpdate = clock::now();
+        return false;
+    }
 
     _lastUpdate = clock::now();
+    return true;
 }
 
 //
-uint64_t PtrChainLink::get(CMemoryModule& mem, std::chrono::milliseconds cacheDuration)
+Address PtrChainLink::get(CMemoryModule& mem, std::chrono::milliseconds cacheDuration)
 {
     const auto now = clock::now();
 
@@ -42,7 +49,10 @@ uint64_t PtrChainLink::get(CMemoryModule& mem, std::chrono::milliseconds cacheDu
     return _ptr;
 }
 
-uint64_t PointerEndpoint::get(std::chrono::milliseconds cacheDuration) const
+
+//
+
+Address PointerEndpoint::get(std::chrono::milliseconds cacheDuration) const
 {
     assert((bool)_mem != (bool)_previous);
     if (_mem && _previous)
@@ -52,8 +62,9 @@ uint64_t PointerEndpoint::get(std::chrono::milliseconds cacheDuration) const
     return _addOffset;
 }
 
-uint64_t PointerEndpoint::get() const
+Address PointerEndpoint::get() const
 {
+    //Todo: Use configurable default duration
     return this->get(std::chrono::milliseconds(10));
 }
 

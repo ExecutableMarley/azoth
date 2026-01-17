@@ -42,7 +42,7 @@ public:
      * @param name     File name of the image (without path).
      * @param path     Full file system path of the image.
      */
-	ProcessImage(uint64_t baseAddr, size_t size, std::string name, std::string path)
+	ProcessImage(Address baseAddr, size_t size, std::string name, std::string path)
 		: baseAddress(baseAddr), size(size), name(std::move(name)), 
 		path(std::move(path)) { }
 
@@ -55,9 +55,9 @@ public:
 	 * 
 	 * The image name is then derived from the path by the implementation.
      */
-	ProcessImage(uint64_t baseAddr, size_t size, std::string path);
+	ProcessImage(Address baseAddr, size_t size, std::string path);
 
-	uint64_t baseAddress; ///< Base address of the image mapping
+	Address baseAddress; ///< Base address of the image mapping
 	size_t size;          ///< Size of the image in bytes
 	std::string name;     ///< Image file name (without directory)
 	std::string path;     ///< Full file system path to the image
@@ -67,7 +67,7 @@ public:
      *
      * @return True if baseAddress is non-zero and size is non-zero.
      */
-	bool valid() const noexcept { return baseAddress != 0 && size != 0; }
+	bool valid() const noexcept { return baseAddress && size; }
 
 	/**
      * @brief Boolean conversion indicating validity.
@@ -112,15 +112,17 @@ inline std::ostream& operator<<(std::ostream& os, const ProcessImage& img)
 
 class ImageSymbol
 {
+public:
 	ImageSymbol() : address(0), index(0) {}
-	ImageSymbol(uint64_t addr, uint32_t idx, std::string name)
+	ImageSymbol(Address addr, uint32_t idx, std::string name)
 		: address(addr), index(idx), name(std::move(name)) {}
 
-	uint64_t address;
+	Address address;
 	uint32_t index;
 	std::string name;
+     std::string forwarder;
 
-	bool valid() const noexcept { return address != 0; }
+	bool valid() const noexcept { return address; }
 };
 
 

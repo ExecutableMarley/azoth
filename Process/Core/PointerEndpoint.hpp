@@ -9,6 +9,8 @@
 #include <chrono>
 #include <cassert>
 
+#include "../Types/Address.hpp"
+
 namespace Azoth
 {
 
@@ -48,13 +50,13 @@ public:
 	PtrChainLink* parent() const noexcept { return _parent; }
 	uint64_t      offset() const noexcept { return _addr; }
 
-	uint64_t get(CMemoryModule& mem, std::chrono::milliseconds cacheDuration);
+	Address get(CMemoryModule& mem, std::chrono::milliseconds cacheDuration);
 
 	bool hasChildren()    const noexcept { return _childCount > 0; }
 	uint32_t childCount() const noexcept { return _childCount; }
 
 private:
-	void update(CMemoryModule& mem, std::chrono::milliseconds cacheDuration);
+	bool update(CMemoryModule& mem, std::chrono::milliseconds cacheDuration);
 
 	void addChild()    noexcept { ++_childCount; }
     void removeChild() noexcept { --_childCount; }
@@ -129,7 +131,7 @@ public:
 	 * @param[in] cacheDuration Maximum allowed age of cached pointer values.
 	 * @return Resolved final address.
 	 */
-	uint64_t get(std::chrono::milliseconds cacheDuration) const;
+	Address get(std::chrono::milliseconds cacheDuration) const;
 
 	/**
 	 * @brief Resolves the final address using the default cache duration.
@@ -138,7 +140,7 @@ public:
 	 *
 	 * @return Resolved final address.
 	 */
-	uint64_t get() const;
+	Address get() const;
 
 	/**
 	 * @brief Implicit conversion to the resolved address.

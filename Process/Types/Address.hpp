@@ -36,8 +36,8 @@ public:
     constexpr Address(value_type v) noexcept : value(v) {}
 
     /** @brief Explicitly constructs an Address from a local pointer. */
-    explicit Address(const void* ptr) noexcept
-	    : value(reinterpret_cast<value_type>(ptr)) {}
+    /*explicit Address(const void* ptr) noexcept
+	    : value(reinterpret_cast<value_type>(ptr)) {}*/
 
     /** @brief Implicit conversion to the underlying 64-bit integer. */
     constexpr operator value_type() const noexcept { return value; }
@@ -88,12 +88,33 @@ public:
     constexpr bool operator< (const Address& other) const noexcept { return value < other.value; }
     constexpr bool operator> (const Address& other) const noexcept { return value > other.value; }
     
+    constexpr bool operator==(const value_type v) const noexcept { return value == v; }
+    constexpr bool operator!=(const value_type v) const noexcept { return value != v; }
+    constexpr bool operator< (const value_type v) const noexcept { return value <  v; }
+    constexpr bool operator> (const value_type v) const noexcept { return value >  v; }
+
+    //integer comparison overloads?
+
     // --- Arithmetic Operators ---
     
+    template <typename T>
+    requires std::is_integral_v<T>
+    constexpr Address operator+(T offset) const noexcept{ return Address(value + static_cast<value_type>(offset)); }
+
+    template <typename T>
+    requires std::is_integral_v<T>
+    constexpr Address operator-(T offset) const noexcept { return Address(value - static_cast<value_type>(offset)); }
+
+    template <typename T>
+    requires std::is_integral_v<T>
+    constexpr Address& operator+=(T offset) noexcept { value += static_cast<value_type>(offset); return *this; }
+
+    /*
     constexpr Address operator+  (value_type offset) const noexcept { return Address(value + offset); }
     constexpr Address operator-  (value_type offset) const noexcept { return Address(value - offset); }
     constexpr Address& operator+=(value_type offset) noexcept       { value += offset; return *this; }
     constexpr Address& operator-=(value_type offset) noexcept       { value -= offset; return *this; }
+    */
 
     constexpr value_type operator-(const Address& other) const noexcept { return value - other.value; }
 
@@ -114,6 +135,11 @@ public:
     static constexpr Address null() noexcept
     {
         return Address{};
+    }
+
+    static constexpr Address fromPtr(const void* ptr) noexcept
+    {
+        return Address(reinterpret_cast<value_type>(ptr));
     }
 
     // --- Static Helpers ---
