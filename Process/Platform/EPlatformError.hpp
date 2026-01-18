@@ -6,6 +6,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <string_view>
+#include <ostream>
 
 namespace Azoth
 {
@@ -55,6 +57,45 @@ struct PlatformErrorState
 	 */
 	uint64_t osError       = 0;
 };
+
+
+constexpr std::string_view to_string(EPlatformError err) noexcept
+{
+    using enum EPlatformError;
+
+    switch (err)
+    {
+        case Success:           return "Success";
+        case NotImplemented:    return "NotImplemented";
+        case NotSupported:      return "NotSupported";
+        case InvalidState:      return "InvalidState";
+        case SymbolNotFound:    return "SymbolNotFound";
+        case ResourceNotFound:  return "ResourceNotFound";
+        case InvalidArgument:   return "InvalidArgument";
+        case AccessDenied:      return "AccessDenied";
+        case InternalError:     return "InternalError";
+    }
+
+    return "UnknownPlatformError";
+}
+
+inline std::ostream& operator<<(std::ostream& os, EPlatformError err)
+{
+    return os << to_string(err);
+}
+
+
+inline std::ostream& operator<<(std::ostream& os, const PlatformErrorState& state)
+{
+    os << state.platformError;
+
+    if (state.platformError == EPlatformError::InternalError)
+    {
+        os << " (osError=" << state.osError << ")";
+    }
+
+    return os;
+}
 
 
 }
