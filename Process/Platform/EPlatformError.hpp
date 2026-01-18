@@ -28,7 +28,10 @@ enum class EPlatformError : uint32_t
 	ResourceNotFound,  // Process, File or Image not found
 	InvalidArgument,   // Bad arguments passed
 	AccessDenied,      // Permission issue
-	InternalError      // OS-specific error occurred
+	RestorationViolation, // Overlapping restore entries are not allowed
+    MalformedData,     // Unexpected or invalid data was found
+    DecodeError,       // osError contains ZyanStatus
+    InternalError      // OS-specific error occurred. osError contains os error code
 };
 
 
@@ -65,15 +68,18 @@ constexpr std::string_view to_string(EPlatformError err) noexcept
 
     switch (err)
     {
-        case Success:           return "Success";
-        case NotImplemented:    return "NotImplemented";
-        case NotSupported:      return "NotSupported";
-        case InvalidState:      return "InvalidState";
-        case SymbolNotFound:    return "SymbolNotFound";
-        case ResourceNotFound:  return "ResourceNotFound";
-        case InvalidArgument:   return "InvalidArgument";
-        case AccessDenied:      return "AccessDenied";
-        case InternalError:     return "InternalError";
+        case Success:              return "Success";
+        case NotImplemented:       return "NotImplemented";
+        case NotSupported:         return "NotSupported";
+        case InvalidState:         return "InvalidState";
+        case SymbolNotFound:       return "SymbolNotFound";
+        case ResourceNotFound:     return "ResourceNotFound";
+        case InvalidArgument:      return "InvalidArgument";
+        case AccessDenied:         return "AccessDenied";
+        case RestorationViolation: return "RestorationViolation";
+        case MalformedData:        return "MalformedData";
+        case DecodeError:          return "DecodeError";
+        case InternalError:        return "InternalError";
     }
 
     return "UnknownPlatformError";
