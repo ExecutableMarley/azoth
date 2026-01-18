@@ -233,5 +233,36 @@ private:
 	}
 };
 
+//Todo: Inconsistent with similar functions
+//Todo: Helper class to restore flags and fill
+
+inline std::ostream& operator<<(std::ostream& os, const Pattern& p)
+{
+	const auto oldFlags = os.flags();
+    const auto oldFill  = os.fill();
+
+	os << std::uppercase << std::hex << std::setfill('0');
+
+	for (size_t i = 0; i < p.bytes.size(); ++i)
+	{
+		if (!p.mask[i])
+			os << "??";
+		else
+			os << std::setw(2) << std::setfill('0') << 
+				static_cast<int>(p.bytes[i]);
+		if (i + 1 < p.bytes.size()) os << ' ';
+	}
+
+	os.flags(oldFlags);
+    os.fill(oldFill);
+	return os;
+}
+
+inline std::string to_string(const Pattern& p)
+{
+	std::ostringstream oss;
+    oss << p;
+    return oss.str();
+}
 
 }
