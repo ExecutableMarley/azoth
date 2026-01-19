@@ -148,6 +148,18 @@ public:
 		return this->readString(addr, size);
 	}
 
+     /**
+      * @brief Read a pointer-sized value from the target process.
+      *
+      * Reads a pointer value whose size matches the architecture of the target
+      * process (e.g. 4 bytes on 32-bit targets, 8 bytes on 64-bit targets) and
+      * zero-extends it into a 64-bit output value.
+      *
+      * @param addr Address from which the pointer value is read.
+      * @param out  Receives the pointer value.
+      *
+      * @return True if the pointer was successfully read; false otherwise.
+      */
      bool readPtr(uint64_t addr, uint64_t& out);
 
 	//=== Write Memory ===//
@@ -278,16 +290,25 @@ private:
      }
 public:
 
-     //Todo: Update this comment to reflect the no overlap ruleset
      /**
      * @brief Change the protection of a memory range.
      *
+     * This function enforces a **no-overlap rule** for tracked protection changes:
+     * - A protection change may only be applied to a range that does **not overlap**
+     *   with any other tracked protection range.
+     * - The only exception is an **exact match** with an existing tracked range
+     *   (same base address and size).
+     * 
      * @param addr            Base address of the range.
      * @param size            Size of the range in bytes.
      * @param newProtect      New protection flags.
      * @param pOldProtection  Optional output for the previous protection.
      * 
-     * @return True if the protection change succeeded.
+     * @return True if the protection change succeeded. On failure, an appropriate
+     *         EPlatformError is set.
+     * 
+     * @note Passing a size of zero, an overflowing range, or any overlapping range
+     *       results in EPlatformError::InvalidArgument.
      */
 	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* pOldProtection)
 	{
@@ -343,6 +364,20 @@ public:
           return setError(EPlatformError::Success);
 	}
 
+     /**
+      * @brief Restore the original protection of a tracked memory range.
+      *
+      * Looks up a previously tracked protection change by its base address and
+      * restores the original protection recorded at the time of the change.
+      *
+      * If no tracked entry exists for the given address, the function succeeds
+      * without performing any operation.
+      *
+      * @param addr Base address of the tracked protection range.
+      *
+      * @return True if the protection was successfully restored or if no tracked
+      *         entry exists, false if the platform call fails.
+      */
      bool restoreProtection(uint64_t addr)
      {
           auto it = _pageProtectRestoreMap.find(addr);
@@ -405,14 +440,24 @@ public:
           return virtualAllocate(0, size, protection);
 	}
 
-     //Todo: Update this comment to reflect the allowUntracked mechanics
      /**
-     * @brief Free previously allocated virtual memory.
-     *
-     * @param addr Base address of the allocation.
-     *
-     * @return True if the memory was successfully released.
-     */
+      * @brief Free a virtual memory allocation.
+      *
+      * By default, this function only frees memory that is **tracked** by this
+      * memory module. If the allocation is tracked, it is released via the platform
+      * backend and removed from the internal tracking map.
+      *
+      * If `allowUntracked` is set to true, the function will attempt to free the
+      * memory even if no tracked allocation exists for the given address.
+      *
+      * @param addr           Base address of the allocation to free.
+      * @param allowUntracked If true, allows freeing memory that is not tracked
+      *                       by this module.
+      *
+      * @return True if the memory was successfully freed; false if the address is
+      *         untracked and `allowUntracked` is false, or if the platform call fails.
+      *         On failure, an appropriate EPlatformError is set.
+      */
 	bool virtualFree(uint64_t addr, bool allowUntracked = false)
 	{
           auto it = _allocRestoreMap.find(addr);
@@ -430,9 +475,17 @@ public:
           {
                return _platformLink->virtualFree(addr);
           }
-          return false; //No tracked entry
+          return setError(EPlatformError::InvalidArgument);
 	}
 
+     /**
+      * @brief Restore (free) a tracked virtual memory allocation.
+      *
+      * This is a strict variant of @ref virtualFree that only succeeds if the allocation
+      * is currently tracked by this memory module.
+      * 
+      * @param addr Base address of the tracked allocation.
+      */
      bool restoreAllocation(uint64_t addr)
      {
           return virtualFree(addr, false);
