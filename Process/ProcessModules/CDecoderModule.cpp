@@ -8,6 +8,8 @@
 #include "../Types/EProcessArchitecture.hpp"
 #include "../CProcess.hpp"
 
+#include <mutex>
+
 namespace Azoth
 {
 
@@ -36,25 +38,74 @@ bool InstructionIterator::operator==(const InstructionIterator& other) const
 }
 
 
+//https://github.com/zyantific/zydis/blob/master/examples/Formatter01.c
+
+ZydisFormatterFunc default_print_address_absolute;
+ZyanStatus PrintAbsAddressHook(
+    const ZydisFormatter* formatter,
+    ZydisFormatterBuffer* buffer,
+    ZydisFormatterContext* context)
+{
+    ZyanU64 address;
+    ZYAN_CHECK(ZydisCalcAbsoluteAddress(context->instruction, context->operand,
+        context->runtime_address, &address));
+       
+    //Check if user data exists
+    if (context->user_data)
+    {
+        auto decoder = (CDecoderModule*)context->user_data;
+
+        
+    }
+
+    //ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL)
+    //ZydisFormatterBufferGetString(buffer, &string);
+    //ZyanStringAppendFormat(string, "<%s>", SYMBOL_TABLE[i].name)
+    //ZydisFormatter
+
+    //return ZYAN_STATUS_ARG_MISSES_VALUE;
+    return default_print_address_absolute(formatter, buffer, context);
+}
 
 
-
-
-
-
-
-//Todo: Handle this better
 CDecoderModule::CDecoderModule(CProcess* backPtr) : _backPtr(backPtr)
 {
 	EProcessArchitecture architecture = backPtr->GetArchitecture();
 
-    if (architecture == EProcessArchitecture::ARM32 || architecture == EProcessArchitecture::ARM64)
+    if (sizeof(void*) == 4)
     {
-        //Not supported. 
-        return;
+        ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_COMPAT_32, ZYDIS_STACK_WIDTH_32);
+    }
+    else
+    {
+        ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
     }
 
-	if (architecture == EProcessArchitecture::x86)
+	ZydisFormatterInit(&_formatter, ZYDIS_FORMATTER_STYLE_INTEL);
+
+#if 1
+    static std::mutex formatter_mutex;
+
+    ZydisFormatterFunc absAddressHook = PrintAbsAddressHook;
+    ZydisFormatterSetHook(&_formatter, ZYDIS_FORMATTER_FUNC_PRINT_ADDRESS_ABS, (const void**)&absAddressHook);
+    
+    // Mutex locked block
+    {
+        std::scoped_lock lock(formatter_mutex);
+
+        if (default_print_address_absolute == nullptr)
+        {
+            default_print_address_absolute = absAddressHook;
+        }
+    }
+#endif
+
+    _isReady = true;
+}
+
+void CDecoderModule::setTargetArchitecture(EProcessArchitecture architecture)
+{
+    if (architecture == EProcessArchitecture::x86)
 	{
 		ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_COMPAT_32, ZYDIS_STACK_WIDTH_32);
 	}
@@ -64,17 +115,8 @@ CDecoderModule::CDecoderModule(CProcess* backPtr) : _backPtr(backPtr)
 	}
     else
     {
-        if constexpr (sizeof(void*) == 8)
-        {
-            ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
-        }
-        else if constexpr (sizeof(void*) == 4)
-        {
-            ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_COMPAT_32, ZYDIS_STACK_WIDTH_32);
-        }
+        return;
     }
-
-	ZydisFormatterInit(&_formatter, ZYDIS_FORMATTER_STYLE_INTEL);
 }
 
 std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactInstruction& instr) const

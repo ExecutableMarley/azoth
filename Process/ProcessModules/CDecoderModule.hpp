@@ -6,6 +6,8 @@
 #pragma once
 
 #include "../ThirdParty/Zydis/Zydis.h"
+#include "../Types/Address.hpp"
+#include "../Types/EProcessArchitecture.hpp"
 
 #include <string>
 #include <cstring>
@@ -41,9 +43,10 @@ struct DecodedInstruction
 struct CompactInstruction
 {
 	/** @brief Runtime address of the instruction (RIP/EIP at decode time). */
-    uint64_t address;     // Instruction runtime address
+    Address address;
 	
-	uint64_t attributes;  // ZydisInstructionAttributes
+	// ZydisInstructionAttributes
+	uint64_t attributes;
 	//Consider compressing attribute
 
 	/**
@@ -238,6 +241,9 @@ public:
     CDecoderModule& operator=(const CDecoderModule&) = delete;
 
 public:
+
+	void setTargetArchitecture(EProcessArchitecture architecture);
+
     bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, CompactInstruction& out)
 	{
 		ZydisDecodedInstruction instr{};
@@ -332,6 +338,13 @@ private:
 	CProcess*      _backPtr; 
 	ZydisDecoder   _decoder;   //20 Bytes
 	ZydisFormatter _formatter; //600 Bytes
+	bool _isReady = false;
+
+	struct ZydisFormatterFunctions
+	{
+		ZydisFormatterFunc default_print_address_absolute;
+	};
+	ZydisFormatterFunctions orig;
 };
 
 
