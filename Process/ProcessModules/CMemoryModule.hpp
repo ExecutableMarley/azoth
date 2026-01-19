@@ -392,6 +392,19 @@ public:
           return allocatedAddr;
 	}
 
+     /**
+     * @brief Allocate virtual memory in the process.
+     *
+     * @param size        Size of the allocation in bytes.
+     * @param protection  Initial protection flags.
+     *
+     * @return Base address of the allocated memory, or 0 on failure.
+     */
+     uint64_t virtualAllocate(size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
+	{
+          return virtualAllocate(0, size, protection);
+	}
+
      //Todo: Update this comment to reflect the allowUntracked mechanics
      /**
      * @brief Free previously allocated virtual memory.
