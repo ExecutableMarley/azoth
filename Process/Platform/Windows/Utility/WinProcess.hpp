@@ -13,6 +13,8 @@
 #include "../../../Types/EProcessArchitecture.hpp"
 #include "../../../Types/EProcessPrivilegeLevel.hpp"
 
+#include "../../../Core/ProcessImage.hpp"
+
 #undef UNICODE
 #undef _UNICODE
 #include <windows.h>
@@ -57,5 +59,12 @@ PlatformErrorState retrieveProcessName(uint32_t pid, std::string& outProcessName
 PlatformErrorState retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath);
 
 PlatformErrorState retrieveProcessPath(uint32_t pid, std::string& outProcessPath);
+
+//
+
+PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, HMODULE hmod, std::vector<ImageSymbol>& symbols);
+
+PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols);
+
 
 }

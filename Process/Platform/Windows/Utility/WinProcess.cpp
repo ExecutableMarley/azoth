@@ -532,5 +532,105 @@ PlatformErrorState retrieveProcessPath(uint32_t pid, std::string& outProcessPath
     return retrieveProcessPath(handle, outProcessPath);
 }
 
+//
+
+//Todo: This belongs somewhere else
+
+//Small helper class to auto unload modules
+class ScopedModule
+{
+public:
+    explicit ScopedModule(HMODULE mod = nullptr) noexcept : hmod(mod) {}
+    ~ScopedModule() { if (hmod) FreeLibrary(hmod); }
+
+    ScopedModule(const ScopedModule&) = delete;
+    ScopedModule& operator=(const ScopedModule&) = delete;
+
+    HMODULE get() const noexcept { return hmod; }
+    explicit operator bool() const noexcept { return hmod != nullptr; }
+
+private:
+    HMODULE hmod;
+};
+
+PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, HMODULE hmod, std::vector<ImageSymbol>& symbols)
+{
+	const Address base = Address::fromPtr(hmod);
+	const auto dos = base.as<IMAGE_DOS_HEADER>();
+	if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+        return { EPlatformError::MalformedData, 0 };
+
+	//WOW64 incompatible. 
+	const auto nt = (base + dos->e_lfanew).as<IMAGE_NT_HEADERS>();
+
+	if (nt->Signature != IMAGE_NT_SIGNATURE)
+		return { EPlatformError::MalformedData, 0};
+
+	const auto& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+	if (!dir.VirtualAddress || !dir.Size)
+        return { EPlatformError::Success, 0}; // no exports
+
+	const auto exports = (base + dir.VirtualAddress).as<IMAGE_EXPORT_DIRECTORY>();
+
+	const auto names     = (base + exports->AddressOfNames).as<DWORD>();
+    const auto ordinals  = (base + exports->AddressOfNameOrdinals).as<WORD>();
+    const auto functions = (base + exports->AddressOfFunctions).as<DWORD>();
+
+	for (DWORD i = 0; i < exports->NumberOfNames; ++i)
+    {
+		const WORD ordinal = ordinals[i];
+        if (ordinal >= exports->NumberOfFunctions)
+            continue;
+
+		const DWORD nameRva = names[i];
+        const DWORD funcRva = functions[ordinal];
+
+		ImageSymbol symbol;
+		symbol.name =  std::string((base+nameRva).as<char>());
+		symbol.index = ordinal;
+
+		const bool isForwarded =
+            funcRva >= dir.VirtualAddress &&
+            funcRva <  dir.VirtualAddress + dir.Size;
+
+		if (isForwarded)
+		{
+			symbol.address = 0;
+			symbol.forwarder = std::string((base + funcRva).as<char>());
+		}
+		else
+		{
+			symbol.address = procImage.baseAddress + funcRva;
+		}
+
+		symbols.emplace_back(std::move(symbol));
+	}
+
+	return { EPlatformError::Success, 0 };
+}
+
+PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols)
+{
+	//Todo: should be named isValid()?
+	if (!procImage.valid() || procImage.path.empty())
+	{
+		return { EPlatformError::InvalidArgument, 0 };
+	}
+
+	HMODULE hmod = GetModuleHandleA(procImage.path.c_str());
+	if (hmod)
+	{
+		return retrieveExportSymbols(procImage, hmod, symbols);
+	}
+	else
+	{
+		ScopedModule ownedModule(LoadLibraryExA(procImage.path.c_str(), nullptr, DONT_RESOLVE_DLL_REFERENCES));
+		if (!ownedModule.get())
+			return { EPlatformError::InternalError, GetLastError() };
+		return retrieveExportSymbols(procImage, ownedModule.get(), symbols);
+	}
+}
+
+
 
 }
