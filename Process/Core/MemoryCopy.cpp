@@ -47,7 +47,7 @@ MemoryCopy::MemoryCopy(CMemoryModule* mem, PointerEndpoint chainAddr, size_t siz
 
 bool MemoryCopy::valid() const
 {
-    return this->_memory != NULL && this->_chainAddr.get() != 0 && this->_size > 0 && this->_buffer != NULL;
+    return this->_memory != NULL && this->_chainAddr.get() != Address::null() && this->_size > 0 && this->_buffer != NULL;
 }
 
 void MemoryCopy::setAddress(uint64_t addr)
@@ -185,7 +185,7 @@ uint64_t MemoryCopy::translate(const void* ptr) const
     return 0;
 }
 
-std::vector<uint64_t> MemoryCopy::translate(std::vector<void*> ptrs) const
+std::vector<uint64_t> MemoryCopy::translate(const std::vector<void*>& ptrs) const
 {
     std::vector<uint64_t> results;
     results.reserve(ptrs.size());

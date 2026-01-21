@@ -32,12 +32,16 @@ typedef unsigned char BYTE;
  */
 class MemoryCopy
 {
+    friend class CMemoryModule;
 public:
-    //Todo: Make constructor protected
 	MemoryCopy();
+
+protected:
 	MemoryCopy(CMemoryModule* memory, uint64_t addr, size_t size);
+
 	MemoryCopy(CMemoryModule* memory, PointerEndpoint chainAddr, size_t size);
 
+public:
     /**
      * @brief Check whether this MemoryCopy instance is usable.
      *
@@ -240,7 +244,7 @@ public:
      *
      * @return Vector of translated addresses (0 for invalid pointers).
      */
-	std::vector<uint64_t> translate(std::vector<void*> ptrs) const;
+	std::vector<uint64_t> translate(const std::vector<void*>& ptrs) const;
 
 private:
 	CMemoryModule*  _memory;
