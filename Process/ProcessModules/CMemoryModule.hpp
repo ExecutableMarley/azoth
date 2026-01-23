@@ -246,7 +246,7 @@ public:
      *
      * @return List of matching memory regions.
      */
-	std::vector<MemoryRegion> queryAllMemoryRegions(uint64_t startAddr, uint64_t maxAddr, ProtectionFilter protectionFilter)
+	std::vector<MemoryRegion> queryAllMemoryRegions(uint64_t startAddr, uint64_t maxAddr, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		std::vector<MemoryRegion> regionList;
 		for (uint64_t i = startAddr; i < maxAddr;)
@@ -268,6 +268,22 @@ public:
 
 		return regionList;
 	}
+
+     /**
+     * @brief Query all memory regions in an address range.
+     *
+     * Regions can be filtered using a ProtectionFilter to match specific
+     * access requirements.
+     *
+     * @param memRange         The query Range 
+     * @param protectionFilter Protection filter to apply.
+     *
+     * @return List of matching memory regions.
+     */
+     std::vector<MemoryRegion> queryAllMemoryRegions(const MemoryRange& memRange, ProtectionFilter protectionFilter = ProtectionFilter())
+     {
+          return queryAllMemoryRegions(memRange.startAddr, memRange.stopAddr, protectionFilter);
+     }
 
 private:
 
