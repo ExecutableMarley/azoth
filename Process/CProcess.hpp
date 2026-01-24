@@ -34,6 +34,7 @@
 
 #include <string>
 #include <memory>
+#include <cassert>
 
 namespace Azoth
 {
@@ -70,7 +71,7 @@ public:
 	 * These steps must be performed explicitly.
 	 */
 	CProcess(std::unique_ptr<IPlatformLink> platformLink) : _platformLink(std::move(platformLink)),
-		_memory(this, platformLink.get()), _decoder(this), _scanner(this),
+		_memory(this, _platformLink.get()), _decoder(this), _scanner(this),
 		_processID(0)
 	{
 		assert(_platformLink);

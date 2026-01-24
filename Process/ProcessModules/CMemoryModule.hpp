@@ -12,6 +12,7 @@
 #include <tuple>
 #include <array>
 #include <memory>
+#include <cassert>
 
 #include "../Types/Address.hpp"
 #include "../Core/MemoryRegion.hpp"
@@ -41,7 +42,7 @@ public:
 	CMemoryModule(CProcess* backPtr, IPlatformLink* platformLink) :
 		_backPtr(backPtr), _platformLink(platformLink)
 	{
-
+          assert(_backPtr && platformLink);
 	}
 
      CMemoryModule(const CMemoryModule&) = delete;
