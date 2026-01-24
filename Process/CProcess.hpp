@@ -113,6 +113,8 @@ public:
 		if (_platformLink->attach(processID))
 		{
 			this->_processID = processID;
+			this->retrieveProcessData();
+			this->_decoder.setTargetArchitecture(_architecture);
 			return true;
 		}
 		return false;
@@ -238,6 +240,9 @@ private:
 	std::string _path;
 	EProcessArchitecture   _architecture;
 	EProcessPrivilegeLevel _privilegeLevel;
+
+	//std::vector<ProcessImage> _processImageCache;
+	//std::vector<std::vector<ImageSymbol>> _symbols;
 
 public:
 	CMemoryModule& getMemory() { return _memory; }
