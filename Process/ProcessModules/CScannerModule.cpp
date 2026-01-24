@@ -208,7 +208,6 @@ uint64_t CScannerModule::signatureScanEx(uint64_t start, uint64_t stop, const Pa
 
 uint64_t CScannerModule::signatureScanEx(const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
-
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
         return signatureScanEx(MemoryRange::max_range_32bit(), pattern, type, operatorIndex, addressOffset);

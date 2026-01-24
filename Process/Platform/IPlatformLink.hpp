@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "EPlatformError.hpp"
 #include "../Types/EProcessArchitecture.hpp"
@@ -135,6 +136,15 @@ public:
 		return _lastError;
 	}
 };
+
+namespace Platform
+{
+
+std::unique_ptr<IPlatformLink> createDefaultLayer();
+
+uint32_t getPID();
+
+}
 
 
 }

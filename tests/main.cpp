@@ -3,19 +3,17 @@
 
 #include "Process/CProcess.hpp"
 
-#include "Process/Platform/Windows/WinapiLink.hpp"
 
 using namespace Azoth;
 
 TEST_CASE("Compile Test")
 {
-    WinapiLink platformLink;
-    CProcess process(&platformLink);
+    CProcess process(Platform::createDefaultLayer());
 
     REQUIRE(TRUE);
 
     REQUIRE(process.initialize());
-    REQUIRE(process.attach(GetCurrentProcessId()));
+    REQUIRE(process.attach(Platform::getPID()));
 
     auto mainImage = process.getProcessMainImage();
     REQUIRE(mainImage.valid());

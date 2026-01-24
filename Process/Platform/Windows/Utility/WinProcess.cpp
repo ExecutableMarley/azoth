@@ -28,6 +28,16 @@ namespace Azoth
 {
 
 
+std::unique_ptr<IPlatformLink> Platform::createDefaultLayer()
+{
+	return std::make_unique<WinapiLink>();
+}
+
+uint32_t Platform::getPID()
+{
+	return GetCurrentProcessId();
+}
+
 PlatformErrorState retrieveProcessIDByName(const std::string& procName, uint32_t& out_process_id)
 {
 	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));

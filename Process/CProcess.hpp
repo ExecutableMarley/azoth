@@ -24,8 +24,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "Types/Address.hpp"
 #include "Types/EProcessArchitecture.hpp"
 #include "Types/EProcessPrivilegeLevel.hpp"
@@ -33,6 +31,9 @@
 #include "ProcessModules/CMemoryModule.hpp"
 #include "ProcessModules/CDecoderModule.hpp"
 #include "ProcessModules/CScannerModule.hpp"
+
+#include <string>
+#include <memory>
 
 namespace Azoth
 {
@@ -68,15 +69,20 @@ public:
 	 * @note The CProcess object does not automatically initialize or attach.
 	 * These steps must be performed explicitly.
 	 */
-	CProcess(IPlatformLink* platformLink) : _platformLink(platformLink),
-		_memory(this, platformLink), _decoder(this), _scanner(this),
+	CProcess(std::unique_ptr<IPlatformLink> platformLink) : _platformLink(std::move(platformLink)),
+		_memory(this, platformLink.get()), _decoder(this), _scanner(this),
 		_processID(0)
 	{
+		assert(_platformLink);
 		this->_name = std::string();
 		this->_path = std::string();
 		this->_architecture   = EProcessArchitecture::Unknown;
 		this->_privilegeLevel = EProcessPrivilegeLevel::Unknown;
 	}
+
+	CProcess(const CProcess&) = delete;
+
+	CProcess& operator=(const CProcess&) = delete;
 
 public:
 
@@ -234,7 +240,7 @@ public:
 	//Threads
 
 private:
-	IPlatformLink* _platformLink;
+	std::unique_ptr<IPlatformLink> _platformLink;
 	uint32_t _processID;
 	std::string _name;
 	std::string _path;
