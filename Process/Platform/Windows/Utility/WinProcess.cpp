@@ -22,6 +22,7 @@
 #include "SmartHandle.hpp"
 #include "WStringUtil.hpp"
 #include "WinTypes.hpp"
+#include "../WinapiLink.hpp"
 
 namespace Azoth
 {
@@ -560,17 +561,40 @@ PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, HMODULE 
 	if (dos->e_magic != IMAGE_DOS_SIGNATURE)
         return { EPlatformError::MalformedData, 0 };
 
-	//WOW64 incompatible. 
-	const auto nt = (base + dos->e_lfanew).as<IMAGE_NT_HEADERS>();
+	// Point to the start of the NT Headers
+    const Address ntHeaderAddr = base + dos->e_lfanew;
 
-	if (nt->Signature != IMAGE_NT_SIGNATURE)
-		return { EPlatformError::MalformedData, 0};
+	const auto nt32 = ntHeaderAddr.as<IMAGE_NT_HEADERS32>();
+    if (nt32->Signature != IMAGE_NT_SIGNATURE)
+        return { EPlatformError::MalformedData, 0 };
 
-	const auto& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
-	if (!dir.VirtualAddress || !dir.Size)
-        return { EPlatformError::Success, 0}; // no exports
+	DWORD exportRva = 0;
+    DWORD exportSize = 0;
 
-	const auto exports = (base + dir.VirtualAddress).as<IMAGE_EXPORT_DIRECTORY>();
+	if (nt32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+	{
+		//32-bit
+		const auto& dir = nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+        exportRva = dir.VirtualAddress;
+        exportSize = dir.Size;
+	}
+	else if (nt32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+	{
+		//64-bit
+		const auto nt64 = ntHeaderAddr.as<IMAGE_NT_HEADERS64>();
+        const auto& dir = nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+        exportRva = dir.VirtualAddress;
+        exportSize = dir.Size;
+	}
+	else 
+    {
+        return { EPlatformError::MalformedData, 0 };
+    }
+
+	if (!exportRva || !exportSize)
+        return { EPlatformError::Success, 0 }; // No exports
+
+	const auto exports = (base + exportRva).as<IMAGE_EXPORT_DIRECTORY>();
 
 	const auto names     = (base + exports->AddressOfNames).as<DWORD>();
     const auto ordinals  = (base + exports->AddressOfNameOrdinals).as<WORD>();
@@ -589,9 +613,9 @@ PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, HMODULE 
 		symbol.name =  std::string((base+nameRva).as<char>());
 		symbol.index = ordinal;
 
-		const bool isForwarded =
-            funcRva >= dir.VirtualAddress &&
-            funcRva <  dir.VirtualAddress + dir.Size;
+		const bool isForwarded = 
+			funcRva >= exportRva && 
+			funcRva < exportRva + exportSize;
 
 		if (isForwarded)
 		{
