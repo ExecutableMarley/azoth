@@ -82,7 +82,7 @@ public:
 		uint32_t exitCode;
 		if (this->getExitCode(exitCode))
 		{
-			isAliveState = texitCode == STILL_ACTIVE;
+			isAliveState = exitCode == STILL_ACTIVE;
 			return setError(EPlatformError::Success);
 		}
 		return false;
