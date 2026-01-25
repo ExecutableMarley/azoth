@@ -10,7 +10,7 @@ TEST_CASE("Compile Test")
 {
     CProcess process(Platform::createDefaultLayer());
 
-    REQUIRE(TRUE);
+    REQUIRE(true);
 
     REQUIRE(process.initialize());
     REQUIRE(process.attach(Platform::getPID()));
