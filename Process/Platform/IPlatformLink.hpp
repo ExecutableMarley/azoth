@@ -41,23 +41,23 @@ public:
 
 	//=== Process Specific ===//
 
-	virtual bool isAlive() const { return setError(EPlatformError::NotImplemented); }
+	virtual bool isAlive(bool& isAliveState)     const { return setError(EPlatformError::NotImplemented); }
 	virtual bool terminate()     { return setError(EPlatformError::NotImplemented); }
 	virtual bool suspend()       { return setError(EPlatformError::NotImplemented); }
 	virtual bool resume()        { return setError(EPlatformError::NotImplemented); }
-	virtual uint32_t getExitCode() const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getExitCode(uint32_t& exitCode) const { return setError(EPlatformError::NotImplemented); }
 
 	//=== Process Images ===//
 
-	virtual bool getMainProcessImage(ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); };
-	virtual bool getProcessImage(const std::string& name, ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); };
+	virtual bool getMainProcessImage(ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessImage(const std::string& name, ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getAllProcessImages(std::vector<ProcessImage>& processImages) const { return setError(EPlatformError::NotImplemented); }
 
 	//=== Process Query ===//
 
-	virtual bool getProcessIDByName(const std::string& name, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); };
-	virtual bool getProcessIDsByName(const std::string& name, std::vector<uint32_t>& procIDs) const { return setError(EPlatformError::NotImplemented); };
-	virtual bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); };
+	virtual bool getProcessIDByName(const std::string& name, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessIDsByName(const std::string& name, std::vector<uint32_t>& procIDs) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); }
 
 	virtual bool getProcessName(uint32_t procID, std::string& name) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getProcessPath(uint32_t procID, std::string& path) const { return setError(EPlatformError::NotImplemented); }

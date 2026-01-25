@@ -171,8 +171,9 @@ public:
 	 * @brief Check whether the attached process is still alive.
 	 */
 	bool isAlive()
-	{
-		return _platformLink->isAlive();
+	{	bool isAliveState = false;
+		_platformLink->isAlive(isAliveState);
+		return isAliveState;
 	}
 
 	/**

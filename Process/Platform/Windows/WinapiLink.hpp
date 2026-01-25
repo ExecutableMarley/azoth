@@ -77,9 +77,15 @@ public:
 
 	//=== Process Specific ===//
 
-	bool isAlive() const override
+	bool isAlive(bool& isAliveState) const override
 	{
-		return this->getExitCode() == STILL_ACTIVE;
+		uint32_t exitCode;
+		if (this->getExitCode(exitCode))
+		{
+			isAliveState = texitCode == STILL_ACTIVE;
+			return setError(EPlatformError::Success);
+		}
+		return false;
 	}
 
 	bool terminate()
@@ -143,11 +149,14 @@ public:
 		return true;
 	}
 
-	uint32_t getExitCode() const override
+	bool getExitCode(uint32_t& exitCode) const override
 	{ 
-		DWORD exitCode;
-		if (GetExitCodeProcess(this->_hProcess, &exitCode))
-			return exitCode;
+		DWORD eCode;
+		if (GetExitCodeProcess(this->_hProcess, &eCode))
+		{
+			exitCode = eCode;
+			return setError(EPlatformError::Success);
+		}
 		return setError(EPlatformError::InternalError, GetLastError());
 	}
 
