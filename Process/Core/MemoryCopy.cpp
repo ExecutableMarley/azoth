@@ -6,6 +6,7 @@
 #include "MemoryCopy.hpp"
 
 #include <algorithm>
+#include <cstring>
 
 #include "../ProcessModules/CMemoryModule.hpp"
 
@@ -67,7 +68,7 @@ void MemoryCopy::resize(size_t newSize)
         std::unique_ptr<BYTE[]> newBuffer = std::make_unique<BYTE[]>(newSize);
         if (this->_buffer)
         {
-            memcpy(newBuffer.get(), this->_buffer.get(), std::min(this->_size, newSize));
+            std::memcpy(newBuffer.get(), this->_buffer.get(), std::min(this->_size, newSize));
         }
         this->_buffer = std::move(newBuffer);
         this->_size = newSize;
