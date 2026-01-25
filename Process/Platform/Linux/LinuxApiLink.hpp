@@ -143,17 +143,42 @@ public:
 
 	bool getMainProcessImage(ProcessImage& processImage) const override
     {
-        return setError(EPlatformError::NotImplemented);
+        std::string path;
+        bool success = getProcessName(_procID, path);
+        if (!success)
+            return false;
+
+        return getProcessImage(path, processImage);
     }
 
 	bool getProcessImage(const std::string& name, ProcessImage& processImage) const override
     {
-        return setError(EPlatformError::NotImplemented);
+        std::unordered_map<std::string, ProcessImage> procImageMap;
+        auto errorCode = getProcessMappedBinaries(_procID, procImageMap);
+        if (errorCode != EPlatformError::Success)
+            return setError(errorCode);
+
+        auto it = procImageMap.find(name);
+        if (it == procImageMap.end())
+            return setError(EPlatformError::ResourceNotFound);
+
+        processImage = it->second;
+        return setError(EPlatformError::Success);
     }
 
-	bool getAllProcessImages(std::vector<ProcessImage>& processImage) const override
+	bool getAllProcessImages(std::vector<ProcessImage>& processImages) const override
     {
-        return setError(EPlatformError::NotImplemented);
+        std::unordered_map<std::string, ProcessImage> procImageMap;
+        auto errorCode = getProcessMappedBinaries(_procID, procImageMap);
+        if (errorCode != EPlatformError::Success)
+            return setError(errorCode);
+
+        for (const auto& [key, img] : procImageMap)
+        {
+            processImages.push_back(img);
+        }
+        
+        return setError(EPlatformError::Success);
     }
 
 	//=== Process Query ===//
