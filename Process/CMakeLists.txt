@@ -4,8 +4,8 @@ target_sources(Process INTERFACE
     ProcessModules/CMemoryModule.cpp
     ProcessModules/CDecoderModule.cpp
     ProcessModules/CScannerModule.cpp
-    Core/MemoryBlock.cpp
     Core/MemoryCopy.cpp
+    Core/MemoryBlock.cpp
     Core/PointerEndpoint.cpp
 )
 
@@ -16,6 +16,10 @@ target_sources(Process INTERFACE
 if (WIN32)
     target_sources(Process INTERFACE
         Platform/Windows/Utility/WinProcess.cpp
+    )
+elseif(UNIX AND NOT APPLE)
+    target_sources(Process INTERFACE
+        Platform/Linux/Utility/LinuxProcess.cpp
     )
 endif()
 
