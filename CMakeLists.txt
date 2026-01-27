@@ -6,7 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(Process)
 add_subdirectory(tests)
+add_subdirectory(examples)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/CMakeLists.txt")
-    add_subdirectory(examples)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sandbox/CMakeLists.txt")
+    add_subdirectory(sandbox)
 endif()

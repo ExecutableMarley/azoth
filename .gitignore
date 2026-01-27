@@ -8,8 +8,8 @@ build/
 Doxyfile
 docs/
 
-# Examples need some refactoring first
-examples/
+# Local tests
+sandbox/
 
 # Local stuff
 todo.txt
