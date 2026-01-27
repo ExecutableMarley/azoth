@@ -154,31 +154,6 @@ bool MemoryCopy::writeToBuffer(uint64_t offset, size_t size, void* buffer)
     return false;
 }
 
-template <class val>
-val MemoryCopy::get(uint64_t offset) const
-{
-    if (this->_buffer == NULL)
-        return val();
-
-    if (offset + sizeof(val) <= this->_size)
-        return *reinterpret_cast<val*>(this->_buffer.get() + offset);
-    return val();
-}
-
-template <class val>
-bool MemoryCopy::set(uint64_t offset, val value)
-{
-    if (this->_buffer == NULL)
-        return false;
-
-    if (offset + sizeof(val) <= this->_size)
-    {
-        *reinterpret_cast<val*>(this->_buffer.get() + offset) = value;
-        return true;
-    }
-    return false;
-}
-
 uint64_t MemoryCopy::translate(const void* ptr) const
 {
     if (this->_buffer.get() <= ptr && ptr < this->_buffer.get() + this->_size)

@@ -75,7 +75,7 @@ public:
      *
      * @return True if the read succeeded.
      */
-	template<class T>
+	template <class T> requires std::is_trivially_copyable_v<T>
 	bool read(uint64_t addr, T& buffer)
 	{
 		return this->read(addr, sizeof(buffer), &buffer);
@@ -111,7 +111,7 @@ public:
      *
      * @return Read value or @p defaultValue on failure.
      */
-	template <class T>
+	template <class T> requires std::is_trivially_copyable_v<T>
 	T read(uint64_t addr, const T& defaultValue = T())
 	{
 		T res;
@@ -188,8 +188,8 @@ public:
      *
      * @return True if the write succeeded.
      */
-	template <class T>
-	bool write(uint64_t addr, T& buffer)
+	template <class T> requires std::is_trivially_copyable_v<T>
+	bool write(uint64_t addr, const T& buffer)
 	{
 		return write(addr, sizeof(buffer), &buffer);
 	}

@@ -209,8 +209,16 @@ public:
      *
      * @return The value, or T{} if out of bounds.
      */
-	template <class val>
-	val get(uint64_t offset) const;
+	template <class T> requires std::is_trivially_copyable_v<T>
+	T get(uint64_t offset) const
+    {
+        if (this->_buffer == NULL)
+            return T();
+
+        if (offset + sizeof(T) <= this->_size)
+            return *reinterpret_cast<T*>(this->_buffer.get() + offset);
+        return T();
+    }
 
     /**
      * @brief Write a typed value into the internal buffer.
@@ -221,8 +229,19 @@ public:
      *
      * @return True if the write succeeds.
      */
-	template <class val>
-	bool set(uint64_t offset, val value);
+	template <class T> requires std::is_trivially_copyable_v<T>
+	bool set(uint64_t offset, T value)
+    {
+        if (this->_buffer == NULL)
+            return false;
+
+        if (offset + sizeof(T) <= this->_size)
+        {
+            *reinterpret_cast<T*>(this->_buffer.get() + offset) = value;
+            return true;
+        }
+        return false;
+    }
 
     //==================================================================
     // Address translation

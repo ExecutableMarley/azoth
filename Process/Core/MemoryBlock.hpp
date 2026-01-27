@@ -50,7 +50,7 @@ public:
 
     bool read(uint64_t offset, size_t size, void* buffer);
 
-    template<typename T>
+    template <class T> requires std::is_trivially_copyable_v<T>
     bool read(uint64_t offset, T& out)
     {
         static_assert(std::is_trivially_copyable_v<T>);
@@ -59,7 +59,7 @@ public:
 
     bool write(uint64_t offset, size_t size, void* buffer);
 
-    template<typename T>
+    template <class T> requires std::is_trivially_copyable_v<T>
     bool write(uint64_t offset, const T& value)
     {
         static_assert(std::is_trivially_copyable_v<T>);
