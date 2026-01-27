@@ -60,22 +60,20 @@ The **CProcess** class provides the main high-level interface, while the platfor
 ### Example 1: Generic Usage
 
 ```cpp
-#include "Platform/Windows/WinapiLink.hpp"
 #include "CProcess.hpp"
 
 using namespace Azoth;
 
 int main()
 {
-    WinapiLink platform;
-    CProcess process(&platform);
+    CProcess process(Platform::createDefaultLayer());
 
     // Initialize internal state
     if (!process.initialize())
         return -1;
 
     // Attach to the process
-    if (!process.attach(GetCurrentProcessId()))
+    if (!process.attach(Platform::getPID()))
         return -1;
 
     std::cout << "Attached to process\n";
@@ -148,12 +146,10 @@ class MySuperiorImplementation : public IPlatformLink
 int main()
 {
     // Using a partially overridden backend
-    MySuperiorReadImplementation myLink1;
-    CProcess process1(&myLink1);
+    CProcess process1(std::make_unique<MySuperiorReadImplementation>());
 
     // Using a fully custom backend
-    MySuperiorImplementation myLink2;
-    CProcess process2(&myLink2);
+    CProcess process2(std::make_unique<MySuperiorImplementation>());
 
     return 0;
 }
