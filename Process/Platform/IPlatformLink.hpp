@@ -125,17 +125,49 @@ public:
  	*        in the calling thread.
 	*
  	* This function returns the error state associated with the most recent
- 	* platform link operation executed on the current thread that failed.
+ 	* azoth operation executed on the current thread that failed.
 	*
+ 	* The error state is stored in a thread-local context and is independent of
+ 	* any specific object instance
 	* @note The returned value is only meaningful if the immediately preceding
- 	*       operation returned `false`. On successful calls, the error state is
- 	*       not modified and should be considered undefined.
+ 	*       platform link operation returned `false`. On successful calls, the
+ 	*       error state should be considered to be undefined.
 	*/
 	PlatformErrorState getLastError() const
 	{
 		return _lastError;
 	}
+
+	static PlatformErrorState getLast()
+	{
+		return _lastError;
+	}
 };
+
+namespace Error
+{
+
+/**
+ * @brief Returns detailed information about the last platform error that occurred
+ *        in the calling thread.
+ *
+ * This function retrieves the error state associated with the most recent
+ * azoth operation executed on the current thread that failed.
+ *
+ * The error state is stored in a thread-local context and is independent of
+ * any specific object instance
+ *
+ * @note The returned value is only meaningful if the immediately preceding
+ *       platform link operation returned `false`. On successful calls, the
+ *       error state should be considered to be undefined.
+ */
+inline PlatformErrorState getLast()
+{
+	return IPlatformLink::getLast();
+}
+
+}
+
 
 namespace Platform
 {
