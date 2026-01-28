@@ -29,19 +29,33 @@ int main()
     int sourceValue = 1337;
     int bufferValue = 0;
 
-    memory.write(remoteAddr, sourceValue);
+   if (memory.write(remoteAddr, sourceValue))
+   {
+        std::cout << "Value written to remote Address: " << sourceValue << "\n";
+   }
 
-    memory.read(remoteAddr, bufferValue);       //by reference
+    if (memory.read(remoteAddr, bufferValue))       //by reference
+    {
+        std::cout << "Value read by reference: " << bufferValue << "\n";
+    }
+
     bufferValue = memory.read<int>(remoteAddr); //as return
 
-    std::cout << "Value read: " << bufferValue << "\n";
+    std::cout << "Value read by return: " << bufferValue << "\n";
 
     // ----------------------------
     // Raw buffer read/write
     // ----------------------------
 
-    memory.write(remoteAddr, sizeof(sourceValue), &sourceValue);
-    memory.read(remoteAddr, sizeof(bufferValue), &bufferValue);
+    if (memory.write(remoteAddr, sizeof(sourceValue), &sourceValue))
+    {
+        std::cout << "Value written by buffer: " << sourceValue << "\n";
+    }
+
+    if (memory.read(remoteAddr, sizeof(bufferValue), &bufferValue))
+    {
+        std::cout << "Value read by buffer: " << bufferValue << "\n";   
+    }
 
     // ----------------------------
     // String helpers
@@ -50,10 +64,15 @@ int main()
     std::string sourceString = "1337";
     std::string bufferString;
 
-    memory.write(remoteAddr, sourceString);
-    memory.readString(remoteAddr, bufferString);
+    if (memory.write(remoteAddr, sourceString))
+    {
+        std::cout << "String written to remote address " << sourceString << "\n";
+    }
 
-    std::cout << "String read: " << bufferString << "\n";
+    if (memory.readString(remoteAddr, bufferString))
+    {
+        std::cout << "String read from remote address: " << bufferString << "\n";   
+    }
 
     // ----------------------------
     // Query memory region info
