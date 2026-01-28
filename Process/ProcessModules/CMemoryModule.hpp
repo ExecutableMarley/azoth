@@ -327,7 +327,7 @@ public:
      * @note Passing a size of zero, an overflowing range, or any overlapping range
      *       results in EPlatformError::InvalidArgument.
      */
-	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* pOldProtection)
+	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* pOldProtection = nullptr)
 	{
           if (size == 0 || addr + size < addr)
           {
