@@ -41,5 +41,23 @@ constexpr bool isArchitecture32Bit(EProcessArchitecture arch) noexcept
            arch == EProcessArchitecture::ARM32;
 }
 
+constexpr std::string_view to_string(EProcessArchitecture arch)
+{
+    switch (arch)
+    {
+        case EProcessArchitecture::Unknown: return "Unknown";
+        case EProcessArchitecture::x86:     return "x86";
+        case EProcessArchitecture::x64:     return "x64";
+        case EProcessArchitecture::ARM32:   return "ARM32";
+		case EProcessArchitecture::ARM64:   return "ARM64";
+        default: return "Unknown";
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, EProcessArchitecture arch)
+{
+    return os << to_string(arch);
+}
+
 
 }

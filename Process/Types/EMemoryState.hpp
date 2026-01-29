@@ -22,5 +22,24 @@ enum class EMemoryState : uint32_t
     Committed
 };
 
+// --- Helper Function ---
+
+constexpr std::string_view to_string(EMemoryState state)
+{
+    switch (state)
+    {
+        case EMemoryState::Unknown:   return "Unknown";
+        case EMemoryState::Free:      return "Free";
+        case EMemoryState::Reserved:  return "Reserved";
+        case EMemoryState::Committed: return "Committed";
+        default: return "Unknown";
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, EMemoryState state)
+{
+    return os << to_string(state);
+}
+
 
 } // namespace Azoth

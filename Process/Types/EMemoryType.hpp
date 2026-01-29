@@ -27,5 +27,24 @@ enum class EMemoryType : uint32_t
     Image   = 0x1000000, // MEM_IMAGE
 };
 
+// --- Helper Function ---
+
+constexpr std::string_view to_string(EMemoryType type)
+{
+    switch (type)
+    {
+        case EMemoryType::Unknown: return "Unknown";
+        case EMemoryType::Private: return "Private";
+        case EMemoryType::Mapped:  return "Mapped";
+        case EMemoryType::Image:   return "Image";
+        default: return "Unknown";
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, EMemoryType type)
+{
+    return os << to_string(type);
+}
+
 
 } // namespace Azoth

@@ -6,6 +6,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <ostream>
 
 namespace Azoth
 {
@@ -58,6 +59,26 @@ constexpr EMemoryProtection& operator&=(EMemoryProtection& a, EMemoryProtection 
 constexpr bool hasFlag(EMemoryProtection value, EMemoryProtection flag)
 {
     return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) == static_cast<uint32_t>(flag);
+}
+
+constexpr std::string_view to_string(EMemoryProtection flags)
+{
+    switch (flags)
+    {
+        case EMemoryProtection::None:      return "None";
+        case EMemoryProtection::Read:      return "Read";
+        case EMemoryProtection::Write:     return "Write";
+        case EMemoryProtection::Execute:   return "Execute";
+        case EMemoryProtection::ReadWrite: return "ReadWrite";
+        case EMemoryProtection::ReadExec:  return "ReadExec";
+        case EMemoryProtection::RWX:       return "RWX";
+        default: return "Unknown";
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, EMemoryProtection flags)
+{
+    return os << to_string(flags);
 }
 
 /* @class ProtectionFilter
