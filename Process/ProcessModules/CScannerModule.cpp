@@ -371,14 +371,14 @@ std::vector<uint64_t> CScannerModule::findAllValues(MemoryCopy& memCopy, BYTE* v
 // 
 //--------------------------------------------------------
 
-std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(uint64_t start, uint64_t stop, size_t minSize)
+std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter)
 {
     std::vector<std::pair<uint64_t, std::string>> results;
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
 
-    auto regions = _memory->queryAllMemoryRegions(start, stop, ProtectionFilter::require(EMemoryProtection::Read));
+    auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter.requireRead());
     for (const auto& region : regions)
     {
         if (region.regionSize > bufferSize)
@@ -410,7 +410,38 @@ std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(uin
     return results;
 }
 
-std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize)
+std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+{
+    return scanForStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
+}
+
+std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(size_t minSize, ProtectionFilter protectionFilter)
+{
+    const auto architecture = _backPtr->GetArchitecture();
+    if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
+        return scanForStrings(MemoryRange::max_range_32bit(), minSize, protectionFilter);
+    else
+        return scanForStrings(MemoryRange::max_range_64bit(), minSize, protectionFilter);
+}
+
+std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(const MemoryCopy& memCopy, size_t minSize)
+{
+    std::vector<std::pair<uint64_t, std::string>> results;
+    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
+    for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
+    {
+        size_t curStringLength = MemIn::findAsciiStringLength(curByte, regionEnd - curByte);
+        if (curStringLength >= minSize)
+        {
+            std::string curString(reinterpret_cast<const char*>(curByte), curStringLength);
+            results.push_back(std::pair<uint64_t, std::string>(memCopy.translate(curByte), curString));
+        }
+        curByte += curStringLength;
+    }
+    return results;
+}
+
+std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter)
 {
     std::vector<std::pair<uint64_t, std::wstring>> results;
 
@@ -446,6 +477,37 @@ std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideString
 
             curByte += curStringLength;
         }
+    }
+    return results;
+}
+
+std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+{
+    return scanForWideStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
+}
+
+std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter)
+{
+    const auto architecture = _backPtr->GetArchitecture();
+    if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
+        return scanForWideStrings(MemoryRange::max_range_32bit(), minSize, protectionFilter);
+    else
+        return scanForWideStrings(MemoryRange::max_range_64bit(), minSize, protectionFilter);
+}
+
+std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
+{
+    std::vector<std::pair<uint64_t, std::wstring>> results;
+    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
+    for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
+    {
+        size_t curStringLength = MemIn::findAsciiStringUTF16Length(curByte, regionEnd - curByte);
+        if (curStringLength >= minSize)
+        {
+            std::wstring curString((wchar_t*)curByte, curStringLength / 2);
+            results.push_back(std::pair<uint64_t, std::wstring>(memCopy.translate(curByte), curString));
+        }
+        curByte += curStringLength;
     }
     return results;
 }

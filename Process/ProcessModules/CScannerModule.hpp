@@ -195,7 +195,13 @@ public:
 	 *
 	 * @return A list of (address, string) pairs.
 	 */
-	std::vector<std::pair<uint64_t, std::string>> scanForStrings(uint64_t start, uint64_t stop, size_t minSize);
+	std::vector<std::pair<uint64_t, std::string>> scanForStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+
+	std::vector<std::pair<uint64_t, std::string>> scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+
+	std::vector<std::pair<uint64_t, std::string>> scanForStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+
+	std::vector<std::pair<uint64_t, std::string>> scanForStrings(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
 	 * @brief Scans memory for for wide (UTF-16) strings.
@@ -204,7 +210,13 @@ public:
 	 *
 	 * @return A list of (address, wide string) pairs.
 	 */
-	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize);
+	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+
+	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+
+	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+
+	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
 	 * @brief Searches for a code cave (a contiguous region of unused bytes).
