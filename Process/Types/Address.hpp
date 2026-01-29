@@ -137,7 +137,7 @@ public:
         return Address{};
     }
 
-    static constexpr Address fromPtr(const void* ptr) noexcept
+    static Address fromPtr(const void* ptr) noexcept
     {
         return Address(reinterpret_cast<value_type>(ptr));
     }
