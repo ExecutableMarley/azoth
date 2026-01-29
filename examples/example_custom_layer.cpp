@@ -1,7 +1,13 @@
 #include "../Process/CProcess.hpp"
+
+// "Temporary solution"
+#ifdef _WIN32
 #include "../Process/Platform/Windows/WinapiLink.hpp"
+#endif
 
 using namespace Azoth;
+
+#ifdef _WIN32
 
 // Override a specific platform method from the default backend
 class MySuperiorReadImplementation : public WinapiLink
@@ -18,6 +24,8 @@ class MySuperiorReadImplementation : public WinapiLink
 		return setError(EPlatformError::InternalError, GetLastError());
 	}
 };
+
+#endif
 
 // Alternatively, provide a completely custom platform backend
 class MySuperiorImplementation : public IPlatformLink
@@ -54,8 +62,12 @@ private:
 
 int main()
 {
+#ifdef _WIN32
+
     // Using a partially overridden backend
     CProcess process1(std::make_unique<MySuperiorReadImplementation>());
+
+#endif
 
     // Using a fully custom backend
     CProcess process2(std::make_unique<MySuperiorImplementation>());
