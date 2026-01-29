@@ -7,8 +7,11 @@ target_link_libraries(custom_layer PRIVATE Process)
 add_executable(memory1 example_memory1.cpp)
 target_link_libraries(memory1 PRIVATE Process)
 
+add_executable(memory2 example_memory2.cpp)
+target_link_libraries(memory2 PRIVATE Process)
+
 # IDE folder for (VS / VSCode CMake Tools)
 set_target_properties(
-    basic custom_layer memory1
+    basic custom_layer memory1 memory2
     PROPERTIES FOLDER "examples"
 )
