@@ -1,5 +1,7 @@
 # Azoth - Process Manipulation Library
 
+[![CMake on multiple platforms](https://github.com/ExecutableMarley/azoth/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/ExecutableMarley/azoth/actions/workflows/cmake-multi-platform.yml)
+
 Azoth is a **platform-independent C++ library** for inspecting and manipulating processes and their memory.
 It is primarily designed for **educational and research purposes**, with a strong focus on clean architecture, extensibility, and OS abstraction.
 
