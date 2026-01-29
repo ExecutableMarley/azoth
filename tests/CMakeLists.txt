@@ -1,5 +1,3 @@
-enable_testing()
-
 add_executable(azoth_tests)
 
 target_sources(azoth_tests PRIVATE
