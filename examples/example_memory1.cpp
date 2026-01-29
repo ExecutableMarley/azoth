@@ -29,12 +29,12 @@ int main()
     int sourceValue = 1337;
     int bufferValue = 0;
 
-   if (memory.write(remoteAddr, sourceValue))
-   {
+    if (memory.write(remoteAddr, sourceValue))
+    {
         std::cout << "Value written to remote Address: " << sourceValue << "\n";
-   }
+    }
 
-    if (memory.read(remoteAddr, bufferValue))       //by reference
+    if (memory.read(remoteAddr, bufferValue))   //by reference
     {
         std::cout << "Value read by reference: " << bufferValue << "\n";
     }
