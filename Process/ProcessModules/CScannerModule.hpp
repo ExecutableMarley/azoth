@@ -113,9 +113,9 @@ public:
 	 */
 	uint64_t findNextValue(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findNextValue(MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	uint64_t findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findNextValue(MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	uint64_t findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	/**
 	 * @brief Finds the next occurrence of a raw value in memory.
@@ -129,19 +129,19 @@ public:
 	template <typename T>
 	uint64_t findNextValue(uint64_t start, uint64_t stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
-		return findNextValue(start, stop, &value, sizeof(value), protectionFilter);
+		return findNextValue(start, stop, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	uint64_t findNextValue(MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	uint64_t findNextValue(const MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
-		return findNextValue(memRange.startAddr, memRange.stopAddr, &value, sizeof(value), protectionFilter);
+		return findNextValue(memRange, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	uint64_t findNextValue(MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	uint64_t findNextValue(const MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
-		return findNextValue(memCopy, &value, sizeof(value), protectionFilter);
+		return findNextValue(memCopy, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	/**
@@ -153,9 +153,9 @@ public:
 	 */
 	std::vector<uint64_t> findAllValues(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllValues(MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<uint64_t> findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllValues(MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<uint64_t> findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	/**
 	 * @brief Finds all occurrences of a raw value in memory.
@@ -169,19 +169,19 @@ public:
 	template <typename T>
 	std::vector<uint64_t> findAllValues(uint64_t start, uint64_t stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
-		return findAllValues(start, stop, &value, sizeof(value), protectionFilter);
+		return findAllValues(start, stop, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	std::vector<uint64_t> findAllValues(MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	std::vector<uint64_t> findAllValues(const MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
-		return findAllValues(memRange.startAddr, memRange.stopAddr, &value, sizeof(value), protectionFilter);
+		return findAllValues(memRange, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	std::vector<uint64_t> findAllValues(MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	std::vector<uint64_t> findAllValues(const MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
-		return findAllValues(memCopy, &value, sizeof(value), protectionFilter);
+		return findAllValues(memCopy, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	//--------------------------------------------------------

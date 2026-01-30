@@ -290,12 +290,12 @@ uint64_t CScannerModule::findNextValue(uint64_t start, uint64_t stop, BYTE* valu
     return 0;
 }
 
-uint64_t CScannerModule::findNextValue(MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+uint64_t CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     return findNextValue(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
 }
 
-uint64_t CScannerModule::findNextValue(MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+uint64_t CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     if (!memCopy.valid())
         return 0;
@@ -347,12 +347,12 @@ std::vector<uint64_t> CScannerModule::findAllValues(uint64_t start, uint64_t sto
     return results;
 }
 
-std::vector<uint64_t> CScannerModule::findAllValues(MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+std::vector<uint64_t> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     return findAllValues(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
 }
 
-std::vector<uint64_t> CScannerModule::findAllValues(MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+std::vector<uint64_t> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     std::vector<uint64_t> results;
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
