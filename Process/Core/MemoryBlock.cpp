@@ -75,7 +75,7 @@ bool MemoryBlock::deallocate()
 {
     if (_ownsMemory && _chainAddr.valid())
     {
-        if (!_memory->virtualFree(_chainAddr))
+        if (!_memory->virtualFree(_chainAddr.get()))
             return false;
     }
 
@@ -110,7 +110,7 @@ bool MemoryBlock::reallocate(size_t newSize, EMemoryProtection protection)
 
     write(0, copySize, temp.get());
 
-    _memory->virtualFree(oldAddr);
+    _memory->virtualFree(oldAddr.get());
 
     return true;
 }

@@ -61,7 +61,7 @@ public:
      *
      * @return True if the read succeeded.
      */
-	bool read(uint64_t addr, size_t size, void* buffer)
+	bool read(Address addr, size_t size, void* buffer)
 	{
 		return _platformLink->read(addr, size, buffer);
 	}
@@ -76,7 +76,7 @@ public:
      * @return True if the read succeeded.
      */
 	template <class T> requires std::is_trivially_copyable_v<T>
-	bool read(uint64_t addr, T& buffer)
+	bool read(Address addr, T& buffer)
 	{
 		return this->read(addr, sizeof(buffer), &buffer);
 	}
@@ -92,7 +92,7 @@ public:
      *
      * @return True if the read succeeded.
      */
-	bool readString(uint64_t addr, std::string& buffer, size_t maxSize = 256)
+	bool readString(Address addr, std::string& buffer, size_t maxSize = 256)
 	{
 		std::vector<char> v(maxSize + 1, 0);
 		if (!this->read(addr, maxSize, v.data()))
@@ -112,7 +112,7 @@ public:
      * @return Read value or @p defaultValue on failure.
      */
 	template <class T> requires std::is_trivially_copyable_v<T>
-	T read(uint64_t addr, const T& defaultValue = T())
+	T read(Address addr, const T& defaultValue = T())
 	{
 		T res;
 		if (!this->read(addr, sizeof(res), &res))
@@ -130,7 +130,7 @@ public:
      *
      * @return The read string, or an empty string on failure.
      */
-	std::string readString(uint64_t addr, size_t maxSize = 256)
+	std::string readString(Address addr, size_t maxSize = 256)
 	{
 		std::vector<char> buffer(maxSize + 1, 0);
 		if (!this->read(addr, maxSize, buffer.data()))
@@ -139,11 +139,11 @@ public:
 		return std::string(buffer.data());
 	}
 
-	std::string readString(uint64_t addr, std::vector<uint64_t> offsets, size_t size = 256)
+	std::string readString(Address addr, std::vector<uint64_t> offsets, size_t size = 256)
 	{
 		for (uint64_t offset : offsets)
 		{
-			this->read(addr, sizeof(uint64_t), &addr);
+			this->read(addr, sizeof(Address), &addr);
 			addr += offset;
 		}
 		return this->readString(addr, size);
@@ -161,7 +161,7 @@ public:
       *
       * @return True if the pointer was successfully read; false otherwise.
       */
-     bool readPtr(uint64_t addr, uint64_t& out);
+     bool readPtr(Address addr, Address& out);
 
 	//=== Write Memory ===//
 
@@ -174,7 +174,7 @@ public:
      *
      * @return True if the write succeeded.
      */
-	bool write(uint64_t addr, size_t size, const void* buffer)
+	bool write(Address addr, size_t size, const void* buffer)
 	{
 		return _platformLink->write(addr, size, buffer);
 	}
@@ -189,7 +189,7 @@ public:
      * @return True if the write succeeded.
      */
 	template <class T> requires std::is_trivially_copyable_v<T>
-	bool write(uint64_t addr, const T& buffer)
+	bool write(Address addr, const T& buffer)
 	{
 		return write(addr, sizeof(buffer), &buffer);
 	}
@@ -202,7 +202,7 @@ public:
      *
      * @return True if the write succeeded.
      */
-	bool write(uint64_t addr, const std::string& buffer)
+	bool write(Address addr, const std::string& buffer)
 	{
 		return write(addr, buffer.size() + 1, (void*)buffer.c_str());
 	} //Todo: Enforce Max size?
@@ -215,7 +215,7 @@ public:
      *
      * @return True if the write succeeded.
      */
-	bool write(uint64_t addr, const std::wstring& buffer)
+	bool write(Address addr, const std::wstring& buffer)
 	{
 		return write(addr, (buffer.size() + 1) * sizeof(wchar_t), (void*)buffer.c_str());
 	} //Todo: Enforce Max size?
@@ -230,7 +230,7 @@ public:
      *
      * @return True if the query succeeded.
      */
-	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion)
+	bool queryMemory(Address addr, MemoryRegion& memoryRegion)
 	{
 		return _platformLink->queryMemory(addr, memoryRegion);
 	}
@@ -247,10 +247,10 @@ public:
      *
      * @return List of matching memory regions.
      */
-	std::vector<MemoryRegion> queryAllMemoryRegions(uint64_t startAddr, uint64_t maxAddr, ProtectionFilter protectionFilter = ProtectionFilter())
+	std::vector<MemoryRegion> queryAllMemoryRegions(Address startAddr, Address maxAddr, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		std::vector<MemoryRegion> regionList;
-		for (uint64_t i = startAddr; i < maxAddr;)
+		for (Address i = startAddr; i < maxAddr;)
 		{
 			MemoryRegion mr;
 			if (queryMemory(i, mr))
@@ -295,7 +295,7 @@ private:
      }
 
      //Not needed with current design
-     bool addProtectExRestore(uint64_t protectAddr, size_t size, EMemoryProtection oldProtect)
+     bool addProtectExRestore(Address protectAddr, size_t size, EMemoryProtection oldProtect)
      {
           auto it = _pageProtectRestoreMap.find(protectAddr);
           if (it == _pageProtectRestoreMap.end())
@@ -327,14 +327,14 @@ public:
      * @note Passing a size of zero, an overflowing range, or any overlapping range
      *       results in EPlatformError::InvalidArgument.
      */
-	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* pOldProtection = nullptr)
+	bool virtualProtect(Address addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* pOldProtection = nullptr)
 	{
           if (size == 0 || addr + size < addr)
           {
                return setError(EPlatformError::InvalidArgument);
           }
 
-          uint64_t end = addr + size;
+          Address end = addr + size;
 
           auto it = _pageProtectRestoreMap.lower_bound(addr);
 
@@ -395,7 +395,7 @@ public:
       * @return True if the protection was successfully restored or if no tracked
       *         entry exists, false if the platform call fails.
       */
-     bool restoreProtection(uint64_t addr)
+     bool restoreProtection(Address addr)
      {
           auto it = _pageProtectRestoreMap.find(addr);
           if (it == _pageProtectRestoreMap.end())
@@ -412,7 +412,7 @@ public:
 
 private:
 
-     bool addAllocationRestoreEntry(uint64_t allocatedAddr, size_t allocationSize)
+     bool addAllocationRestoreEntry(Address allocatedAddr, size_t allocationSize)
      {
           if (_allocRestoreMap.count(allocatedAddr) == 0)
           {
@@ -433,9 +433,9 @@ public:
      *
      * @return Base address of the allocated memory, or 0 on failure.
      */
-	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
+	Address virtualAllocate(Address addr, size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
 	{
-          uint64_t allocatedAddr = _platformLink->virtualAllocate(addr, size, protection);
+          Address allocatedAddr = _platformLink->virtualAllocate(addr, size, protection);
           if (allocatedAddr)
           {
                addAllocationRestoreEntry(allocatedAddr, size);
@@ -452,7 +452,7 @@ public:
      *
      * @return Base address of the allocated memory, or 0 on failure.
      */
-     uint64_t virtualAllocate(size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
+     Address virtualAllocate(size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
 	{
           return virtualAllocate(0, size, protection);
 	}
@@ -475,7 +475,7 @@ public:
       *         untracked and `allowUntracked` is false, or if the platform call fails.
       *         On failure, an appropriate EPlatformError is set.
       */
-	bool virtualFree(uint64_t addr, bool allowUntracked = false)
+	bool virtualFree(Address addr, bool allowUntracked = false)
 	{
           auto it = _allocRestoreMap.find(addr);
           if (it != _allocRestoreMap.end())
@@ -503,19 +503,19 @@ public:
       * 
       * @param addr Base address of the tracked allocation.
       */
-     bool restoreAllocation(uint64_t addr)
+     bool restoreAllocation(Address addr)
      {
           return virtualFree(addr, false);
      }
 
 private:
 
-     bool addMemoryRestorePoint(uint64_t addr, size_t size)
+     bool addMemoryRestorePoint(Address addr, size_t size)
      {
           if (size == 0 || addr + size < addr)
                return setError(EPlatformError::InvalidArgument);
 
-          uint64_t end = addr + size;
+          Address end = addr + size;
           auto it = _codeMemoryRestoreMap.lower_bound(addr);
 
           // Exact match
@@ -550,7 +550,7 @@ private:
      }
 public:
 
-     bool patchReadOnlyMemory(uint64_t addr, size_t size, const BYTE* buffer)
+     bool patchReadOnlyMemory(Address addr, size_t size, const BYTE* buffer)
      {
           MemoryRegion mr;
           if (!queryMemory(addr, mr)) return false;
@@ -578,7 +578,7 @@ public:
           return success;
      }
 
-     bool restoreReadOnlyMemory(uint64_t addr)
+     bool restoreReadOnlyMemory(Address addr)
      {
           auto it = _codeMemoryRestoreMap.find(addr);
           if (it == _codeMemoryRestoreMap.end())
@@ -614,9 +614,9 @@ private:
 	CProcess* _backPtr;
 	IPlatformLink* _platformLink;
 
-     std::map<uint64_t, CodeRestorePoint>    _codeMemoryRestoreMap;
-     std::map<uint64_t, ProtectRestorePoint> _pageProtectRestoreMap;
-     std::map<uint64_t, AllocRestorePoint>   _allocRestoreMap;
+     std::map<Address, CodeRestorePoint>    _codeMemoryRestoreMap;
+     std::map<Address, ProtectRestorePoint> _pageProtectRestoreMap;
+     std::map<Address, AllocRestorePoint>   _allocRestoreMap;
 };
 
 

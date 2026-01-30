@@ -20,7 +20,7 @@ CScannerModule::CScannerModule(CProcess* backPtr) : _backPtr(backPtr)
 	this->_memory = &backPtr->getMemory();
 }
 
-uint64_t CScannerModule::findPatternEx(uint64_t start, uint64_t stop, const Pattern& pattern, ProtectionFilter protectionFilter)
+Address CScannerModule::findPatternEx(Address start, Address stop, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
 	std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
 	size_t bufferSize = 0x1000;
@@ -47,7 +47,7 @@ uint64_t CScannerModule::findPatternEx(uint64_t start, uint64_t stop, const Patt
         {
             if (pattern.matches(curByte, regionEnd))
             {
-                uint64_t remoteAddress = curByte - buffer.get() + region.baseAddress;
+                Address remoteAddress = curByte - buffer.get() + region.baseAddress;
                 if (start <= remoteAddress && remoteAddress <= stop)
                     return remoteAddress;
             }
@@ -56,7 +56,7 @@ uint64_t CScannerModule::findPatternEx(uint64_t start, uint64_t stop, const Patt
     return 0;
 }
 
-uint64_t CScannerModule::findPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter)
+Address CScannerModule::findPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -65,12 +65,12 @@ uint64_t CScannerModule::findPatternEx(const Pattern& pattern, ProtectionFilter 
         return findPatternEx(MemoryRange::max_range_64bit(), pattern, protectionFilter);
 }
 
-uint64_t CScannerModule::findPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
+Address CScannerModule::findPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     return findPatternEx(memRange.startAddr, memRange.stopAddr, pattern, protectionFilter);
 }
 
-uint64_t CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter)
+Address CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     const size_t patternSize = pattern.size();
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
@@ -84,13 +84,13 @@ uint64_t CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern&
     return 0;
 }
 
-std::vector<uint64_t> CScannerModule::findAllPatternEx(uint64_t start, uint64_t stop, const Pattern& pattern, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule::findAllPatternEx(Address start, Address stop, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
     size_t patternSize = pattern.size();
 
-    std::vector<uint64_t> results;
+    std::vector<Address> results;
 
     auto regions = _memory->queryAllMemoryRegions(start, stop, protectionFilter.requireRead());
     for (const auto& region : regions)
@@ -113,7 +113,7 @@ std::vector<uint64_t> CScannerModule::findAllPatternEx(uint64_t start, uint64_t 
         {
             if (pattern.matches(curByte, regionEnd))
             {
-                uint64_t remoteAddress = curByte - buffer.get() + region.baseAddress;
+                Address remoteAddress = curByte - buffer.get() + region.baseAddress;
                 if (start <= remoteAddress && remoteAddress <= stop)
                     results.push_back(remoteAddress);
             }
@@ -122,7 +122,7 @@ std::vector<uint64_t> CScannerModule::findAllPatternEx(uint64_t start, uint64_t 
     return results;
 }
 
-std::vector<uint64_t> CScannerModule:: findAllPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule:: findAllPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -131,14 +131,14 @@ std::vector<uint64_t> CScannerModule:: findAllPatternEx(const Pattern& pattern, 
         return findAllPatternEx(MemoryRange::max_range_64bit(), pattern, protectionFilter);
 }
 
-std::vector<uint64_t> CScannerModule::findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule::findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     return findAllPatternEx(memRange.startAddr, memRange.stopAddr, pattern, protectionFilter);
 }
 
-std::vector<uint64_t> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
-    std::vector<uint64_t> results;
+    std::vector<Address> results;
 
     const size_t patternSize = pattern.size();
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
@@ -156,13 +156,12 @@ std::vector<uint64_t> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy
 // 
 //--------------------------------------------------------
 
-uint64_t CScannerModule::signatureScanEx(uint64_t start, uint64_t stop, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+Address CScannerModule::signatureScanEx(Address start, Address stop, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
     size_t patternSize = pattern.size();
 
-    uint64_t ptr = 0;
     auto regions = _memory->queryAllMemoryRegions(start, stop, ProtectionFilter::require(EMemoryProtection::Execute));
     for (const auto& region : regions)
     {
@@ -206,7 +205,7 @@ uint64_t CScannerModule::signatureScanEx(uint64_t start, uint64_t stop, const Pa
     return 0;
 }
 
-uint64_t CScannerModule::signatureScanEx(const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+Address CScannerModule::signatureScanEx(const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -215,12 +214,12 @@ uint64_t CScannerModule::signatureScanEx(const Pattern& pattern, short type, int
         return signatureScanEx(MemoryRange::max_range_64bit(), pattern, type, operatorIndex, addressOffset);
 }
 
-uint64_t CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+Address CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
     return signatureScanEx(memRange.startAddr, memRange.stopAddr, pattern, type, operatorIndex, addressOffset);
 }
 
-uint64_t CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
     size_t patternSize = pattern.size();
 
@@ -255,7 +254,7 @@ uint64_t CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Patter
 // 
 //--------------------------------------------------------
 
-uint64_t CScannerModule::findNextValue(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+Address CScannerModule::findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -281,7 +280,7 @@ uint64_t CScannerModule::findNextValue(uint64_t start, uint64_t stop, BYTE* valu
         {
             if (memcmp(curByte, value, valueSize) == 0)
             {
-                uint64_t remoteAddress = curByte - buffer.get() + region.baseAddress;
+                Address remoteAddress = curByte - buffer.get() + region.baseAddress;
                 if (start <= remoteAddress && remoteAddress <= stop)
                     return remoteAddress;
             }
@@ -290,12 +289,12 @@ uint64_t CScannerModule::findNextValue(uint64_t start, uint64_t stop, BYTE* valu
     return 0;
 }
 
-uint64_t CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     return findNextValue(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
 }
 
-uint64_t CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     if (!memCopy.valid())
         return 0;
@@ -311,9 +310,9 @@ uint64_t CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, s
     return 0;
 }
 
-std::vector<uint64_t> CScannerModule::findAllValues(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule::findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
-    std::vector<uint64_t> results;
+    std::vector<Address> results;
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
 
@@ -338,7 +337,7 @@ std::vector<uint64_t> CScannerModule::findAllValues(uint64_t start, uint64_t sto
         {
             if (memcmp(curByte, value, valueSize) == 0)
             {
-                uint64_t remoteAddress = curByte - buffer.get() + region.baseAddress;
+                Address remoteAddress = curByte - buffer.get() + region.baseAddress;
                 if (start <= remoteAddress && remoteAddress <= stop)
                     results.push_back(remoteAddress);
             }
@@ -347,20 +346,20 @@ std::vector<uint64_t> CScannerModule::findAllValues(uint64_t start, uint64_t sto
     return results;
 }
 
-std::vector<uint64_t> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     return findAllValues(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
 }
 
-std::vector<uint64_t> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
-    std::vector<uint64_t> results;
+    std::vector<Address> results;
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
     for (BYTE* curByte = memCopy.getBuffer(); curByte + valueSize < regionEnd; curByte++)
     {
         if (memcmp(curByte, value, valueSize) == 0)
         {
-            uint64_t remoteAddress = memCopy.translate(curByte);
+            Address remoteAddress = memCopy.translate(curByte);
             results.push_back(remoteAddress);
         }
     }
@@ -371,9 +370,9 @@ std::vector<uint64_t> CScannerModule::findAllValues(const MemoryCopy& memCopy, B
 // 
 //--------------------------------------------------------
 
-std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter)
 {
-    std::vector<std::pair<uint64_t, std::string>> results;
+    std::vector<std::pair<Address, std::string>> results;
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -402,7 +401,7 @@ std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(uin
             {
                 //Todo: Check if between start stop
                 std::string curString(reinterpret_cast<const char*>(curByte), curStringLength);
-                results.push_back(std::pair<uint64_t, std::string>(curByte - buffer.get() + region.baseAddress, curString));
+                results.push_back(std::pair<Address, std::string>(curByte - buffer.get() + region.baseAddress, curString));
             }
             curByte += curStringLength;
         }
@@ -410,12 +409,12 @@ std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(uin
     return results;
 }
 
-std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
 {
     return scanForStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
 }
 
-std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(size_t minSize, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -424,9 +423,9 @@ std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(siz
         return scanForStrings(MemoryRange::max_range_64bit(), minSize, protectionFilter);
 }
 
-std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(const MemoryCopy& memCopy, size_t minSize)
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const MemoryCopy& memCopy, size_t minSize)
 {
-    std::vector<std::pair<uint64_t, std::string>> results;
+    std::vector<std::pair<Address, std::string>> results;
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
     for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
     {
@@ -434,16 +433,16 @@ std::vector<std::pair<uint64_t, std::string>> CScannerModule::scanForStrings(con
         if (curStringLength >= minSize)
         {
             std::string curString(reinterpret_cast<const char*>(curByte), curStringLength);
-            results.push_back(std::pair<uint64_t, std::string>(memCopy.translate(curByte), curString));
+            results.push_back(std::pair<Address, std::string>(memCopy.translate(curByte), curString));
         }
         curByte += curStringLength;
     }
     return results;
 }
 
-std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter)
 {
-    std::vector<std::pair<uint64_t, std::wstring>> results;
+    std::vector<std::pair<Address, std::wstring>> results;
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -472,7 +471,7 @@ std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideString
             {
                 //Todo: Check if between start stop
                 std::wstring curString((wchar_t*)curByte, curStringLength / 2);
-                results.push_back(std::pair<uint64_t, std::wstring>(curByte - buffer.get() + region.baseAddress, curString));
+                results.push_back(std::pair<Address, std::wstring>(curByte - buffer.get() + region.baseAddress, curString));
             }
 
             curByte += curStringLength;
@@ -481,12 +480,12 @@ std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideString
     return results;
 }
 
-std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
 {
     return scanForWideStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
 }
 
-std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -495,9 +494,9 @@ std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideString
         return scanForWideStrings(MemoryRange::max_range_64bit(), minSize, protectionFilter);
 }
 
-std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
+std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
 {
-    std::vector<std::pair<uint64_t, std::wstring>> results;
+    std::vector<std::pair<Address, std::wstring>> results;
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
     for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
     {
@@ -505,14 +504,14 @@ std::vector<std::pair<uint64_t, std::wstring>> CScannerModule::scanForWideString
         if (curStringLength >= minSize)
         {
             std::wstring curString((wchar_t*)curByte, curStringLength / 2);
-            results.push_back(std::pair<uint64_t, std::wstring>(memCopy.translate(curByte), curString));
+            results.push_back(std::pair<Address, std::wstring>(memCopy.translate(curByte), curString));
         }
         curByte += curStringLength;
     }
     return results;
 }
 
-uint64_t CScannerModule::scanForCodeCave(uint64_t start, uint64_t stop, size_t minSize)
+Address CScannerModule::scanForCodeCave(Address start, Address stop, size_t minSize)
 {
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -546,7 +545,7 @@ uint64_t CScannerModule::scanForCodeCave(uint64_t start, uint64_t stop, size_t m
     return 0;
 }
 
-uint64_t CScannerModule::scanForCodeCave(size_t minSize)
+Address CScannerModule::scanForCodeCave(size_t minSize)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -555,13 +554,12 @@ uint64_t CScannerModule::scanForCodeCave(size_t minSize)
         return scanForCodeCave(MemoryRange::max_range_64bit(), minSize);
 }
 
-uint64_t CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize)
+Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize)
 {
     return scanForCodeCave(memRange.startAddr, memRange.stopAddr, minSize);
 }
 
-
-uint64_t CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize)
+Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize)
 {
     //Todo: Align curByte
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();

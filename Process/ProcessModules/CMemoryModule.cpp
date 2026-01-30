@@ -12,7 +12,7 @@ namespace Azoth
 {
 
 
-bool CMemoryModule::readPtr(uint64_t addr, uint64_t& out)
+bool CMemoryModule::readPtr(Address addr, Address& out)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)

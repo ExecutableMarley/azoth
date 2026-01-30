@@ -49,26 +49,26 @@ public:
 	 *
 	 * @return Address of the first match, or 0 if none was found.
 	 */
-	uint64_t findPatternEx(uint64_t start, uint64_t stop, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findPatternEx(Address start, Address stop, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	/**
 	 * @brief Finds all occurrences of a byte pattern within a memory range.
 	 *
 	 * @return A list of absolute addresses where the pattern was found.
 	 */
-	std::vector<uint64_t> findAllPatternEx(uint64_t start, uint64_t stop, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllPatternEx(Address start, Address stop, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllPatternEx(const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	//--------------------------------------------------------
 	// Signature-based scanning
@@ -90,16 +90,16 @@ public:
 	 *
 	 * @return The resolved address, or 0 if the signature was not found or invalid.
 	 */
-	uint64_t signatureScanEx(uint64_t start, uint64_t end, const Pattern& pattern,
+	Address signatureScanEx(Address start, Address end, const Pattern& pattern,
 		short type, int operatorIndex, int addressOffset);
 
-	uint64_t signatureScanEx(const Pattern& pattern,
+	Address signatureScanEx(const Pattern& pattern,
 		short type, int operatorIndex, int addressOffset);
 
-	uint64_t signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, 
+	Address signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, 
 		short type, int operatorIndex, int addressOffset);
 
-	uint64_t signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, 
+	Address signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, 
 		short type, int operatorIndex, int addressOffset);
 
 	//--------------------------------------------------------
@@ -111,11 +111,11 @@ public:
 	 *
 	 * @return Address of the first occurrence after @p start, or 0 if not found.
 	 */
-	uint64_t findNextValue(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	uint64_t findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	Address findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	/**
 	 * @brief Finds the next occurrence of a raw value in memory.
@@ -127,19 +127,19 @@ public:
 	 * @return Address of the first occurrence after @p start, or 0 if not found.
 	 */
 	template <typename T>
-	uint64_t findNextValue(uint64_t start, uint64_t stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	Address findNextValue(Address start, Address stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		return findNextValue(start, stop, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	uint64_t findNextValue(const MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	Address findNextValue(const MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		return findNextValue(memRange, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	uint64_t findNextValue(const MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	Address findNextValue(const MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		return findNextValue(memCopy, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
@@ -151,11 +151,11 @@ public:
 	 * 
 	 * @return A list of addresses where the value was found.
 	 */
-	std::vector<uint64_t> findAllValues(uint64_t start, uint64_t stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<uint64_t> findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<Address> findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
 	/**
 	 * @brief Finds all occurrences of a raw value in memory.
@@ -167,19 +167,19 @@ public:
 	 * @return A list of addresses where the value was found.
 	 */
 	template <typename T>
-	std::vector<uint64_t> findAllValues(uint64_t start, uint64_t stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	std::vector<Address> findAllValues(Address start, Address stop, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		return findAllValues(start, stop, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	std::vector<uint64_t> findAllValues(const MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	std::vector<Address> findAllValues(const MemoryRange& memRange, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		return findAllValues(memRange, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
 
 	template <typename T>
-	std::vector<uint64_t> findAllValues(const MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
+	std::vector<Address> findAllValues(const MemoryCopy& memCopy, T value, ProtectionFilter protectionFilter = ProtectionFilter())
 	{
 		return findAllValues(memCopy, (BYTE*)&value, sizeof(value), protectionFilter);
 	}
@@ -195,13 +195,13 @@ public:
 	 *
 	 * @return A list of (address, string) pairs.
 	 */
-	std::vector<std::pair<uint64_t, std::string>> scanForStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::string>> scanForStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<uint64_t, std::string>> scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::string>> scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<uint64_t, std::string>> scanForStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::string>> scanForStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<uint64_t, std::string>> scanForStrings(const MemoryCopy& memCopy, size_t minSize);
+	std::vector<std::pair<Address, std::string>> scanForStrings(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
 	 * @brief Scans memory for for wide (UTF-16) strings.
@@ -210,13 +210,13 @@ public:
 	 *
 	 * @return A list of (address, wide string) pairs.
 	 */
-	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(uint64_t start, uint64_t stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<uint64_t, std::wstring>> scanForWideStrings(const MemoryCopy& memCopy, size_t minSize);
+	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
 	 * @brief Searches for a code cave (a contiguous region of unused bytes).
@@ -228,13 +228,13 @@ public:
 	 *
 	 * @return Address of the first suitable code cave, or 0 if none was found.
 	 */
-	uint64_t scanForCodeCave(uint64_t start, uint64_t stop, size_t minSize);
+	Address scanForCodeCave(Address start, Address stop, size_t minSize);
 
-	uint64_t scanForCodeCave(size_t minSize);
+	Address scanForCodeCave(size_t minSize);
 
-	uint64_t scanForCodeCave(const MemoryRange& memRange, size_t minSize);
+	Address scanForCodeCave(const MemoryRange& memRange, size_t minSize);
 
-	uint64_t scanForCodeCave(const MemoryCopy& memCopy, size_t minSize);
+	Address scanForCodeCave(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
 	 * @brief Finds all cross-references to a relative address within a module.
@@ -250,9 +250,9 @@ public:
 	 *
 	 * @return A list of absolute instruction addresses that reference the target.
 	 */
-	std::vector<uint64_t> findAllCrossRefs(const ProcessImage& module, uint64_t relativeTargetAddress);
+	std::vector<Address> findAllCrossRefs(const ProcessImage& module, Address relativeTargetAddress);
 
-	std::vector<uint64_t> findAllCrossRefs(const MemoryCopy& memCopy, uint64_t relativeTargetAddress);
+	std::vector<Address> findAllCrossRefs(const MemoryCopy& memCopy, Address relativeTargetAddress);
 
 
 private:

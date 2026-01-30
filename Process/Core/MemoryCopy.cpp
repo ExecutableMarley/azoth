@@ -79,7 +79,7 @@ void MemoryCopy::resize(size_t newSize)
 bool MemoryCopy::readIn()
 {
     if (this->_chainAddr.valid())
-        return this->_memory->read(this->_chainAddr, this->_size, this->_buffer.get());
+        return this->_memory->read(this->_chainAddr.get(), this->_size, this->_buffer.get());
     else
         return false;
 }
@@ -111,7 +111,7 @@ bool MemoryCopy::readIn(PointerEndpoint chainAddr, size_t size)
 bool MemoryCopy::writeBack()
 {
     if (this->_chainAddr.valid())
-        return this->_memory->write(this->_chainAddr, this->_size, this->_buffer.get());
+        return this->_memory->write(this->_chainAddr.get(), this->_size, this->_buffer.get());
     else
         return false;
 }

@@ -64,7 +64,7 @@ private:
 private:
 	PtrChainLink*  _parent = 0;
 	uint64_t       _addr   = 0;
-	uint64_t       _ptr    = 0;
+	Address        _ptr    = 0;
 	clock::time_point _lastUpdate{};
 	uint32_t   _childCount = 0;
 };
