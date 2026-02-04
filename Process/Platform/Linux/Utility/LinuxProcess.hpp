@@ -24,6 +24,9 @@ namespace Azoth
 {
 
 
+PlatformErrorState sendSignal(pid_t pid, int signal);
+
+
 EPlatformError getProcessMappedBinaries(uint32_t pid, std::unordered_map<std::string, ProcessImage>& outBinaries);
 
 

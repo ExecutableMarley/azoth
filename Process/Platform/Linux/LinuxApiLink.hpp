@@ -73,20 +73,16 @@ public:
 
 	bool isAlive(bool& aliveState) const override
     {
+        aliveState = false;
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, 0) == 0)
+        PlatformErrorState esp = sendSignal(this->_procID, 0);
+        if (esp.platformError == EPlatformError::Success)
         {
             aliveState = true;
-            return setError(EPlatformError::Success);
         }
-        
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(esp);
     }
 
 	bool terminate() override
@@ -94,14 +90,7 @@ public:
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, SIGTERM) == 0)
-            return setError(EPlatformError::Success);
-
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(sendSignal(this->_procID, SIGTERM));
     }
 
 	bool suspend() override
@@ -109,14 +98,7 @@ public:
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, SIGSTOP) == 0)
-            return setError(EPlatformError::Success);
-
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(sendSignal(this->_procID, SIGSTOP));
     }
 
 	bool resume() override
@@ -124,14 +106,7 @@ public:
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, SIGCONT) == 0)
-            return setError(EPlatformError::Success);
-
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(sendSignal(this->_procID, SIGCONT));
     }
 
 	bool getExitCode(uint32_t& exitCode) const override
@@ -225,7 +200,7 @@ public:
 
 	bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const override
     {
-        // No universal window to process mapping on Linux
+        // No universal 'window to process' mapping on Linux
         // Override this method to provide a system specific implementation.
         return setError(EPlatformError::NotImplemented);
     }

@@ -20,6 +20,19 @@ uint32_t Platform::getPID()
     return getpid();
 }
 
+PlatformErrorState sendSignal(pid_t pid, int signal)
+{
+    if (kill(pid, signal) == 0)
+    {
+        return PlatformErrorState{ EPlatformError::Success, 0 };
+    }
+
+    if (errno == ESRCH) return PlatformErrorState{ EPlatformError::ResourceNotFound, 0 };
+    if (errno == EPERM) return PlatformErrorState{ EPlatformError::AccessDenied, 0 };
+    return PlatformErrorState{ EPlatformError::InternalError, (uint64_t)errno };
+}
+
+
 
 EPlatformError getProcessMappedBinaries(uint32_t pid, std::unordered_map<std::string, ProcessImage>& outBinaries)
 {
@@ -73,5 +86,31 @@ EPlatformError getProcessMappedBinaries(uint32_t pid, std::unordered_map<std::st
     }
     return EPlatformError::Success;
 }
+
+bool readStartTime(pid_t pid, uint64_t& startTime)
+{
+    std::ifstream file("/proc/" + std::to_string(pid) + "/stat");
+    if (!file)
+        return false;
+
+    std::string line;
+    std::getline(file, line);
+
+    auto rparen = line.rfind(')');
+    if (rparen == std::string::npos)
+        return false;
+
+    std::istringstream iss(line.substr(rparen + 2));
+
+    std::string dummy;
+
+    // skip 19 fields? (Verify this)
+    for (int i = 0; i < 19; ++i)
+        iss >> std::ws >> dummy;
+
+    iss >> startTime;
+    return !iss.fail();
+}
+
 
 }
