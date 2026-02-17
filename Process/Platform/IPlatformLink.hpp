@@ -19,8 +19,6 @@
 namespace Azoth
 {
 
-//Todo: All optional methods should return bool or int
-
 /**
  * @brief Platform abstraction layer for process interaction.
  */
@@ -89,7 +87,7 @@ public:
 
 	virtual bool joinThread(uint32_t threadID, uint32_t timeOutMillis) { return setError(EPlatformError::NotImplemented); }
 
-	virtual uint32_t getThreadExitCode(uint32_t threadID) { return setError(EPlatformError::NotImplemented); }
+	virtual bool getThreadExitCode(uint32_t threadID, uint32_t& exitCode) { return setError(EPlatformError::NotImplemented); }
 
 	//set/get context
 
