@@ -20,6 +20,11 @@ CScannerModule::CScannerModule(CProcess* backPtr) : _backPtr(backPtr)
 	this->_memory = &backPtr->getMemory();
 }
 
+Address CScannerModule::findPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
+{
+    return findPatternEx(memRange.startAddr, memRange.stopAddr, pattern, protectionFilter);
+}
+
 Address CScannerModule::findPatternEx(Address start, Address stop, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
 	std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
@@ -65,11 +70,6 @@ Address CScannerModule::findPatternEx(const Pattern& pattern, ProtectionFilter p
         return findPatternEx(MemoryRange::max_range_64bit(), pattern, protectionFilter);
 }
 
-Address CScannerModule::findPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
-{
-    return findPatternEx(memRange.startAddr, memRange.stopAddr, pattern, protectionFilter);
-}
-
 Address CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     const size_t patternSize = pattern.size();
@@ -82,6 +82,11 @@ Address CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern& 
         }
     }
     return 0;
+}
+
+std::vector<Address> CScannerModule::findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
+{
+    return findAllPatternEx(memRange.startAddr, memRange.stopAddr, pattern, protectionFilter);
 }
 
 std::vector<Address> CScannerModule::findAllPatternEx(Address start, Address stop, const Pattern& pattern, ProtectionFilter protectionFilter)
@@ -131,11 +136,6 @@ std::vector<Address> CScannerModule:: findAllPatternEx(const Pattern& pattern, P
         return findAllPatternEx(MemoryRange::max_range_64bit(), pattern, protectionFilter);
 }
 
-std::vector<Address> CScannerModule::findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, ProtectionFilter protectionFilter)
-{
-    return findAllPatternEx(memRange.startAddr, memRange.stopAddr, pattern, protectionFilter);
-}
-
 std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, ProtectionFilter protectionFilter)
 {
     std::vector<Address> results;
@@ -155,6 +155,11 @@ std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy,
 //--------------------------------------------------------
 // 
 //--------------------------------------------------------
+
+Address CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+{
+    return signatureScanEx(memRange.startAddr, memRange.stopAddr, pattern, type, operatorIndex, addressOffset);
+}
 
 Address CScannerModule::signatureScanEx(Address start, Address stop, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
@@ -214,11 +219,6 @@ Address CScannerModule::signatureScanEx(const Pattern& pattern, short type, int 
         return signatureScanEx(MemoryRange::max_range_64bit(), pattern, type, operatorIndex, addressOffset);
 }
 
-Address CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
-{
-    return signatureScanEx(memRange.startAddr, memRange.stopAddr, pattern, type, operatorIndex, addressOffset);
-}
-
 Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
     size_t patternSize = pattern.size();
@@ -253,6 +253,11 @@ Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern
 //--------------------------------------------------------
 // 
 //--------------------------------------------------------
+
+Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+{
+    return findNextValue(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
+}
 
 Address CScannerModule::findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
@@ -289,11 +294,6 @@ Address CScannerModule::findNextValue(Address start, Address stop, BYTE* value, 
     return 0;
 }
 
-Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
-{
-    return findNextValue(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
-}
-
 Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     if (!memCopy.valid())
@@ -308,6 +308,11 @@ Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, si
         }
     }
     return 0;
+}
+
+std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
+{
+    return findAllValues(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
 }
 
 std::vector<Address> CScannerModule::findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
@@ -346,11 +351,6 @@ std::vector<Address> CScannerModule::findAllValues(Address start, Address stop, 
     return results;
 }
 
-std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
-{
-    return findAllValues(memRange.startAddr, memRange.stopAddr, value, valueSize, protectionFilter);
-}
-
 std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, ProtectionFilter protectionFilter)
 {
     std::vector<Address> results;
@@ -369,6 +369,11 @@ std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BY
 //--------------------------------------------------------
 // 
 //--------------------------------------------------------
+
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+{
+    return scanForStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
+}
 
 std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter)
 {
@@ -409,11 +414,6 @@ std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(Addr
     return results;
 }
 
-std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
-{
-    return scanForStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
-}
-
 std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(size_t minSize, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
@@ -438,6 +438,11 @@ std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(cons
         curByte += curStringLength;
     }
     return results;
+}
+
+std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+{
+    return scanForWideStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
 }
 
 std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter)
@@ -480,11 +485,6 @@ std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings
     return results;
 }
 
-std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
-{
-    return scanForWideStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
-}
-
 std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
@@ -509,6 +509,11 @@ std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings
         curByte += curStringLength;
     }
     return results;
+}
+
+Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize)
+{
+    return scanForCodeCave(memRange.startAddr, memRange.stopAddr, minSize);
 }
 
 Address CScannerModule::scanForCodeCave(Address start, Address stop, size_t minSize)
@@ -552,11 +557,6 @@ Address CScannerModule::scanForCodeCave(size_t minSize)
         return scanForCodeCave(MemoryRange::max_range_32bit(), minSize);
     else
         return scanForCodeCave(MemoryRange::max_range_64bit(), minSize);
-}
-
-Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize)
-{
-    return scanForCodeCave(memRange.startAddr, memRange.stopAddr, minSize);
 }
 
 Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize)
