@@ -440,14 +440,14 @@ std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(cons
     return results;
 }
 
-std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter)
 {
     return scanForWideStrings(memRange.startAddr, memRange.stopAddr, minSize, protectionFilter);
 }
 
-std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter)
 {
-    std::vector<std::pair<Address, std::wstring>> results;
+    std::vector<std::pair<Address, std::u16string>> results;
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -475,8 +475,8 @@ std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings
             if (curStringLength >= minSize)
             {
                 //Todo: Check if between start stop
-                std::wstring curString((wchar_t*)curByte, curStringLength / 2);
-                results.push_back(std::pair<Address, std::wstring>(curByte - buffer.get() + region.baseAddress, curString));
+                std::u16string curString((char16_t*)curByte, curStringLength / sizeof(char16_t));
+                results.push_back(std::pair<Address, std::u16string>(curByte - buffer.get() + region.baseAddress, curString));
             }
 
             curByte += curStringLength;
@@ -485,7 +485,7 @@ std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings
     return results;
 }
 
-std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter)
+std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -494,17 +494,17 @@ std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings
         return scanForWideStrings(MemoryRange::max_range_64bit(), minSize, protectionFilter);
 }
 
-std::vector<std::pair<Address, std::wstring>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
+std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
 {
-    std::vector<std::pair<Address, std::wstring>> results;
+    std::vector<std::pair<Address, std::u16string>> results;
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
     for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
     {
         size_t curStringLength = MemIn::findAsciiStringUTF16Length(curByte, regionEnd - curByte);
         if (curStringLength >= minSize)
         {
-            std::wstring curString((wchar_t*)curByte, curStringLength / 2);
-            results.push_back(std::pair<Address, std::wstring>(memCopy.translate(curByte), curString));
+            std::u16string curString((char16_t*)curByte, curStringLength / sizeof(char16_t));
+            results.push_back(std::pair<Address, std::u16string>(memCopy.translate(curByte), curString));
         }
         curByte += curStringLength;
     }

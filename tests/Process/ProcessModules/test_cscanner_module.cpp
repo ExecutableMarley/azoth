@@ -145,7 +145,7 @@ TEST_CASE_FIXTURE(ScannerTestFixture, "CScannerModule scanForWideStrings")
 
     for (const auto& [addr, str] : results)
     {
-        if (str == L"WideTest")
+        if (str == u"WideTest")
             found = true;
     }
 
