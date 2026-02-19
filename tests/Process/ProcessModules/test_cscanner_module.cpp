@@ -133,9 +133,9 @@ TEST_CASE_FIXTURE(ScannerTestFixture, "CScannerModule scanForStrings")
 
 TEST_CASE_FIXTURE(ScannerTestFixture, "CScannerModule scanForWideStrings")
 {
-    const wchar_t* w1 = L"WideTest";
+    const char16_t* w1 = u"WideTest";
 
-    std::memcpy(buffer.get() + 256, w1, (wcslen(w1) + 1) * sizeof(wchar_t));
+    std::memcpy(buffer.get() + 256, w1, (std::char_traits<char16_t>::length(w1) + 1) * sizeof(char16_t));
 
     auto results = scanner->scanForWideStrings(range, 4);
 
