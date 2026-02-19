@@ -318,7 +318,7 @@ public:
         return setError(EPlatformError::InternalError, (uint64_t)errno);
     }
 
-	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const
+	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const override
     {
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
@@ -387,19 +387,19 @@ public:
         return setError(EPlatformError::InvalidState); //Todo: Change error code
     }
 
-	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect)
+	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) override
     {
         //Todo: ptrace
         return setError(EPlatformError::NotImplemented);
     }
 	
-	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection)
+	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) override
     {
         //Todo: ptrace
         return setError(EPlatformError::NotImplemented);
     }
 	
-	bool virtualFree(uint64_t addr)
+	bool virtualFree(uint64_t addr) override
     {
         //Todo: ptrace
         return setError(EPlatformError::NotImplemented);
@@ -407,32 +407,32 @@ public:
 
 	//=== Threads ===//
 
-	bool isThreadAlive(uint32_t threadID)
+	bool isThreadAlive(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool suspendThread(uint32_t threadID)
+	bool suspendThread(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool resumeThread(uint32_t threadID)
+	bool resumeThread(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool terminateThread(uint32_t threadID)
+	bool terminateThread(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool joinThread(uint32_t threadID, uint32_t timeOutMillis)
+	bool joinThread(uint32_t threadID, uint32_t timeOutMillis) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	uint32_t getThreadExitCode(uint32_t threadID)
+	bool getThreadExitCode(uint32_t threadID, uint32_t& exitCode) override
     {
         return setError(EPlatformError::NotImplemented);
     }
