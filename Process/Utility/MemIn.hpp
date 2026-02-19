@@ -62,7 +62,7 @@ namespace MemIn
         const uint8_t* end = bytes + bufferSize;
         size_t length = 0;
 
-        for (const uint8_t* i = bytes; i + 1 < end; i += 2)
+        for (const uint8_t* i = bytes; i + 1 < end; i += sizeof(char16_t))
         {
             const uint8_t lo = i[0];
             const uint8_t hi = i[1];
@@ -71,7 +71,7 @@ namespace MemIn
                 break;
 
             if (lo >= ' ' && lo <= '~' && hi == 0x00)
-                length += 2;
+                length += sizeof(char16_t);
             else
                 break;
         }

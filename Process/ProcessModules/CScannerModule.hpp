@@ -210,13 +210,13 @@ public:
 	 *
 	 * @return A list of (address, wide string) pairs.
 	 */
-	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(const MemoryRange& memRange, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(Address start, Address stop, size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
+	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(size_t minSize, ProtectionFilter protectionFilter = ProtectionFilter());
 
-	std::vector<std::pair<Address, std::wstring>> scanForWideStrings(const MemoryCopy& memCopy, size_t minSize);
+	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
 	 * @brief Searches for a code cave (a contiguous region of unused bytes).
