@@ -283,7 +283,11 @@ public:
         struct iovec local  = { buffer, size };
         struct iovec remote = { (void*)addr, size };
 
+#if 0
         ssize_t n = syscall(SYS_process_vm_readv, pid, &local, 1, &remote, 1, 0);
+#else
+        ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
+#endif
         if (n == (ssize_t)size) return setError(EPlatformError::Success);
         //if (n >= 0) Partial copy
 
@@ -301,7 +305,11 @@ public:
         struct iovec local  = { const_cast<void*>(buffer), size };
         struct iovec remote = { (void*)addr, size };
 
+#if 0
         ssize_t n = syscall(SYS_process_vm_writev, pid, &local, 1, &remote, 1, 0);
+#else
+        ssize_t n = process_vm_writev(pid, &local, 1, &remote, 1, 0);
+#endif
         if (n == (ssize_t)size) return setError(EPlatformError::Success);
         //if (n >= 0) Partial copy
         
