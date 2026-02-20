@@ -325,6 +325,19 @@ public:
 		return absAddr;
 	}
 
+	uint64_t decodeAbsoluteMemoryAddress(const CompactInstruction& instr, const ZydisDecodedOperand& operand)
+	{
+		ZydisDecodedInstruction zydisInstr;
+		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, instr.raw_bytes, sizeof(instr.raw_bytes), &zydisInstr)))
+			return 0;
+
+		uint64_t absAddr = 0;
+		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&zydisInstr, &operand, instr.address, &absAddr)))
+			return 0;
+
+		return absAddr;
+	}
+
 	std::ostream& formatInstruction(std::ostream& os, const CompactInstruction& instr) const;
 
     std::string formatInstruction(const CompactInstruction& instr) const;
