@@ -34,7 +34,9 @@ TEST_CASE_FIXTURE(MemoryTestFixture, "CMemoryModule Basic Read/Write Operations"
         int outputByRef = 0;
 
         // Test Write
-        REQUIRE(memory->write(remoteAddr, expected));
+        bool writeResult = memory->write(remoteAddr, expected);
+        INFO(Error::getLast());
+        REQUIRE(writeResult);
 
         // Test Read by Reference
         REQUIRE(memory->read(remoteAddr, outputByRef));

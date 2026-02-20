@@ -20,6 +20,13 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <algorithm>
+#include <cstdint>
+#include <mutex>
+#include <unordered_map>
+#include <chrono>
+#include "Utility/LinuxProcess.hpp"
 
 //Todo: Renaming to Unix naming scheme
 
@@ -32,6 +39,14 @@ namespace fs = std::filesystem;
 class LinuxLink : public IPlatformLink
 { 
 public:
+    LinuxLink()
+        : _procID(0)
+        , _lastCacheUpdate(std::chrono::steady_clock::time_point::min())
+        , _lastMapsWriteTime(std::filesystem::file_time_type::min())
+        , _cacheTTL(std::chrono::milliseconds(1000))
+    {
+    }
+
 	~LinuxLink() override
     {
 
@@ -54,7 +69,13 @@ public:
 	bool attach(uint32_t procID) override
     {
         if (!procID) return setError(EPlatformError::InvalidArgument);
+        // attach and invalidate cache
         this->_procID = procID;
+        std::lock_guard<std::mutex> lock(this->_cacheMutex);
+        this->_cachedMemoryRegions.clear();
+        this->_cachedProcessImages.clear();
+        this->_lastCacheUpdate = std::chrono::steady_clock::time_point::min();
+        this->_lastMapsWriteTime = std::filesystem::file_time_type::min();
         return true;
     }
 
@@ -66,27 +87,29 @@ public:
 
 	void detach() override
     {
+        // detach and invalidate cache
         this->_procID = 0;
+        std::lock_guard<std::mutex> lock(this->_cacheMutex);
+        this->_cachedMemoryRegions.clear();
+        this->_cachedProcessImages.clear();
+        this->_lastCacheUpdate = std::chrono::steady_clock::time_point::min();
+        this->_lastMapsWriteTime = std::filesystem::file_time_type::min();
     }
 
 	//=== Process Specific ===//
 
 	bool isAlive(bool& aliveState) const override
     {
+        aliveState = false;
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, 0) == 0)
+        PlatformErrorState esp = sendSignal(this->_procID, 0);
+        if (esp.platformError == EPlatformError::Success)
         {
             aliveState = true;
-            return setError(EPlatformError::Success);
         }
-        
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(esp);
     }
 
 	bool terminate() override
@@ -94,14 +117,7 @@ public:
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, SIGTERM) == 0)
-            return setError(EPlatformError::Success);
-
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(sendSignal(this->_procID, SIGTERM));
     }
 
 	bool suspend() override
@@ -109,14 +125,7 @@ public:
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, SIGSTOP) == 0)
-            return setError(EPlatformError::Success);
-
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(sendSignal(this->_procID, SIGSTOP));
     }
 
 	bool resume() override
@@ -124,14 +133,7 @@ public:
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        if (kill(pid, SIGCONT) == 0)
-            return setError(EPlatformError::Success);
-
-        if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
-        if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return setError(sendSignal(this->_procID, SIGCONT));
     }
 
 	bool getExitCode(uint32_t& exitCode) const override
@@ -153,13 +155,12 @@ public:
 
 	bool getProcessImage(const std::string& name, ProcessImage& processImage) const override
     {
-        std::unordered_map<std::string, ProcessImage> procImageMap;
-        auto errorCode = getProcessMappedBinaries(_procID, procImageMap);
-        if (errorCode != EPlatformError::Success)
-            return setError(errorCode);
+        if (!ensureCacheValid())
+            return setError(EPlatformError::ResourceNotFound);
 
-        auto it = procImageMap.find(name);
-        if (it == procImageMap.end())
+        std::lock_guard<std::mutex> lock(this->_cacheMutex);
+        auto it = this->_cachedProcessImages.find(name);
+        if (it == this->_cachedProcessImages.end())
             return setError(EPlatformError::ResourceNotFound);
 
         processImage = it->second;
@@ -168,16 +169,14 @@ public:
 
 	bool getAllProcessImages(std::vector<ProcessImage>& processImages) const override
     {
-        std::unordered_map<std::string, ProcessImage> procImageMap;
-        auto errorCode = getProcessMappedBinaries(_procID, procImageMap);
-        if (errorCode != EPlatformError::Success)
-            return setError(errorCode);
+        if (!ensureCacheValid())
+            return setError(EPlatformError::ResourceNotFound);
 
-        for (const auto& [key, img] : procImageMap)
+        std::lock_guard<std::mutex> lock(this->_cacheMutex);
+        for (const auto& [key, img] : this->_cachedProcessImages)
         {
             processImages.push_back(img);
         }
-        
         return setError(EPlatformError::Success);
     }
 
@@ -225,7 +224,7 @@ public:
 
 	bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const override
     {
-        // No universal window to process mapping on Linux
+        // No universal 'window to process' mapping on Linux
         // Override this method to provide a system specific implementation.
         return setError(EPlatformError::NotImplemented);
     }
@@ -284,7 +283,11 @@ public:
         struct iovec local  = { buffer, size };
         struct iovec remote = { (void*)addr, size };
 
+#if 0
         ssize_t n = syscall(SYS_process_vm_readv, pid, &local, 1, &remote, 1, 0);
+#else
+        ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
+#endif
         if (n == (ssize_t)size) return setError(EPlatformError::Success);
         //if (n >= 0) Partial copy
 
@@ -302,7 +305,11 @@ public:
         struct iovec local  = { const_cast<void*>(buffer), size };
         struct iovec remote = { (void*)addr, size };
 
+#if 0
         ssize_t n = syscall(SYS_process_vm_writev, pid, &local, 1, &remote, 1, 0);
+#else
+        ssize_t n = process_vm_writev(pid, &local, 1, &remote, 1, 0);
+#endif
         if (n == (ssize_t)size) return setError(EPlatformError::Success);
         //if (n >= 0) Partial copy
         
@@ -311,82 +318,88 @@ public:
         return setError(EPlatformError::InternalError, (uint64_t)errno);
     }
 
-	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const
+	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const override
     {
         if (!isAttached())
             return setError(EPlatformError::InvalidState);
 
-        pid_t pid = static_cast<pid_t>(this->_procID);
-        std::string mapsPath = std::string("/proc/") + std::to_string(pid) + "/maps";
-        std::ifstream maps(mapsPath);
-        if (!maps.is_open())
-            return setError(EPlatformError::InternalError, (uint64_t)errno);
+        if (!ensureCacheValid())
+            return setError(EPlatformError::ResourceNotFound);
 
-        std::string line;
-        while (std::getline(maps, line))
+        std::lock_guard<std::mutex> lock(this->_cacheMutex);
+
+        // Todo: Linear time and also not clean
+        const auto& entries = this->_cachedMemoryRegions;
+        for (size_t i = 0; i < entries.size(); ++i)
         {
-            std::istringstream iss(line);
-            std::string range, perms, offset, dev, inode, path;
-            iss >> range >> perms >> offset >> dev >> inode;
-            std::getline(iss, path);
-            // leading space
-            if (!path.empty() && path[0] == ' ') path.erase(0, 1);
+            const auto& cur = entries[i];
+            uint64_t curStart = cur.baseAddress;
+            uint64_t curEnd   = cur.baseAddress + cur.regionSize;
 
-            auto dash = range.find('-');
-            if (dash == std::string::npos) continue;
-            uint64_t start = std::stoull(range.substr(0, dash), nullptr, 16);
-            uint64_t end   = std::stoull(range.substr(dash + 1), nullptr, 16);
-
-            if (addr >= start && addr < end)
+            // Case 1: Address inside valid region
+            if (addr >= curStart && addr < curEnd)
             {
-                EMemoryProtection prot = EMemoryProtection::None;
-                if (perms.size() >= 1 && perms[0] == 'r') prot |= EMemoryProtection::Read;
-                if (perms.size() >= 2 && perms[1] == 'w') prot |= EMemoryProtection::Write;
-                if (perms.size() >= 3 && perms[2] == 'x') prot |= EMemoryProtection::Execute;
+                memoryRegion = cur;
+                return setError(EPlatformError::Success);
+            }
 
-                EMemoryType type = EMemoryType::Unknown;
-                if (!path.empty() && path[0] != '[')
+            // Case 2: Address before first region
+            if (i == 0 && addr < curStart)
+            {
+                memoryRegion.baseAddress = 0;
+                memoryRegion.regionSize  = static_cast<size_t>(curStart);
+                memoryRegion.protection  = EMemoryProtection::None;
+                memoryRegion.state       = EMemoryState::Free;
+                memoryRegion.type        = EMemoryType::Unknown;
+                return setError(EPlatformError::Success);
+            }
+
+            // Case 3: Gap between current and next region
+            if (i + 1 < entries.size())
+            {
+                const auto& next = entries[i + 1];
+                uint64_t nextStart = next.baseAddress;
+
+                if (addr >= curEnd && addr < nextStart)
                 {
-                    if ((prot & EMemoryProtection::Execute) != EMemoryProtection::None)
-                        type = EMemoryType::Image;
-                    else
-                        type = EMemoryType::Mapped;
+                    memoryRegion.baseAddress = curEnd;
+                    memoryRegion.regionSize  = static_cast<size_t>(nextStart - curEnd);
+                    memoryRegion.protection  = EMemoryProtection::None;
+                    memoryRegion.state       = EMemoryState::Free;
+                    memoryRegion.type        = EMemoryType::Unknown;
+                    return setError(EPlatformError::Success);
                 }
-                else
-                {
-                    // anonymous/private mappings
-                    if (perms.size() >= 4 && perms[3] == 'p')
-                        type = EMemoryType::Private;
-                    else
-                        type = EMemoryType::Unknown;
-                }
+            }
 
-                memoryRegion.baseAddress = start;
-                memoryRegion.regionSize  = static_cast<size_t>(end - start);
-                memoryRegion.protection  = prot;
-                memoryRegion.state       = EMemoryState::Committed;
-                memoryRegion.type        = type;
-
+            // Case 4: After last region
+            if (i == entries.size() - 1 && addr >= curEnd)
+            {
+                memoryRegion.baseAddress = curEnd;
+                memoryRegion.regionSize  = static_cast<size_t>(
+                    std::numeric_limits<uint64_t>::max() - curEnd);
+                memoryRegion.protection  = EMemoryProtection::None;
+                memoryRegion.state       = EMemoryState::Free;
+                memoryRegion.type        = EMemoryType::Unknown;
                 return setError(EPlatformError::Success);
             }
         }
-
-        return setError(EPlatformError::ResourceNotFound);
+        // Should never reach here
+        return setError(EPlatformError::InvalidState); //Todo: Change error code
     }
 
-	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect)
+	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) override
     {
         //Todo: ptrace
         return setError(EPlatformError::NotImplemented);
     }
 	
-	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection)
+	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) override
     {
         //Todo: ptrace
         return setError(EPlatformError::NotImplemented);
     }
 	
-	bool virtualFree(uint64_t addr)
+	bool virtualFree(uint64_t addr) override
     {
         //Todo: ptrace
         return setError(EPlatformError::NotImplemented);
@@ -394,32 +407,32 @@ public:
 
 	//=== Threads ===//
 
-	bool isThreadAlive(uint32_t threadID)
+	bool isThreadAlive(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool suspendThread(uint32_t threadID)
+	bool suspendThread(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool resumeThread(uint32_t threadID)
+	bool resumeThread(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool terminateThread(uint32_t threadID)
+	bool terminateThread(uint32_t threadID) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool joinThread(uint32_t threadID, uint32_t timeOutMillis)
+	bool joinThread(uint32_t threadID, uint32_t timeOutMillis) override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	uint32_t getThreadExitCode(uint32_t threadID)
+	bool getThreadExitCode(uint32_t threadID, uint32_t& exitCode) override
     {
         return setError(EPlatformError::NotImplemented);
     }
@@ -427,7 +440,64 @@ public:
 	//set/get context
 
 private:
+    // Ensure the cached maps and images are up-to-date.
+    bool ensureCacheValid() const
+    {
+        if (!isAttached())
+            return false;
+
+        auto now = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(this->_cacheMutex);
+
+        if (this->_lastCacheUpdate != std::chrono::steady_clock::time_point::min() && (now - this->_lastCacheUpdate) < this->_cacheTTL)
+            return true;
+
+        std::filesystem::file_time_type mapsTime;
+        if (getMapsWriteTime(this->_procID, mapsTime))
+        {
+            if (mapsTime == this->_lastMapsWriteTime && this->_lastCacheUpdate != std::chrono::steady_clock::time_point::min())
+            {
+                this->_lastCacheUpdate = now;
+                return true;
+            }
+        }
+
+        // Refresh caches under lock
+        EPlatformError res = this->_refreshCachesLocked();
+        return (res == EPlatformError::Success);
+    }
+
+    // Refresh caches; MUST be called with _cacheMutex held
+    EPlatformError _refreshCachesLocked() const
+    {
+        std::vector<MemoryRegion> regions;
+        std::unordered_map<std::string, ProcessImage> images;
+
+        EPlatformError err = parseProcessMaps(this->_procID, regions, images);
+        if (err != EPlatformError::Success)
+            return err;
+
+        std::filesystem::file_time_type mapsTime;
+        if (!getMapsWriteTime(this->_procID, mapsTime))
+            mapsTime = std::filesystem::file_time_type::min();
+
+        // swap into mutable caches
+        this->_cachedMemoryRegions.swap(regions);
+        this->_cachedProcessImages.swap(images);
+        this->_lastMapsWriteTime = mapsTime;
+        this->_lastCacheUpdate = std::chrono::steady_clock::now();
+
+        return EPlatformError::Success;
+    }
     uint32_t _procID;
+
+    // Caching for memory regions and mapped binaries
+    mutable std::mutex _cacheMutex;
+    mutable std::vector<MemoryRegion> _cachedMemoryRegions;
+    mutable std::unordered_map<std::string, ProcessImage> _cachedProcessImages;
+    mutable std::chrono::steady_clock::time_point _lastCacheUpdate;
+    mutable std::filesystem::file_time_type _lastMapsWriteTime;
+    std::chrono::milliseconds _cacheTTL;
 };
 
 
