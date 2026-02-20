@@ -23,17 +23,7 @@ namespace Azoth
 class CProcess;
 class CDecoderModule;
 
-struct DecoderConfig
-{
 
-};
-
-struct DecodedInstruction
-{
-	ZydisDecodedInstruction instr{}; //328 bytes
-	ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT]{}; //80 Bytes * 10
-	uint64_t runtimeAddress = 0;
-};
 
 /**
  * @brief Compact representation of a decoded x86/x64 instruction.
@@ -244,6 +234,10 @@ public:
 
 	void setTargetArchitecture(EProcessArchitecture architecture);
 
+	//Todo: Reconsider CompactInstruction class
+	//Maybe we should simply add an c++ wrapper around ZydisDecodedInstruction instead
+	//As long as we do not want to store the instructions. Size does not matter anyways
+
     bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, CompactInstruction& out)
 	{
 		ZydisDecodedInstruction instr{};
@@ -253,6 +247,15 @@ public:
 		}
 
 		out.fromZydis(instr, buffer, runtimeAddr);
+		return true;
+	}
+
+	bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, ZydisDecodedInstruction& out)
+	{
+		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &out)))
+		{
+			return false;
+		}
 		return true;
 	}
 
@@ -273,6 +276,19 @@ public:
     	return true;
 	}
 
+	bool decodeNext(const uint8_t*& buffer, size_t& size, uint64_t& runtimeAddr, ZydisDecodedInstruction& out)
+	{
+    	if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &out)))
+    	{
+        	return false;
+    	}
+		// Advance state
+    	buffer      += out.length;
+    	size        -= out.length;
+    	runtimeAddr += out.length;
+    	return true;
+	}
+
 	//Iterator support
     InstructionRange range(const uint8_t* buffer, size_t size, uint64_t addr)
 	{
@@ -285,6 +301,16 @@ public:
 		if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, instr.raw_bytes, sizeof(instr.raw_bytes), &zydisInstruction, out.operands)))
 			return false;
 
+		out.count = zydisInstruction.operand_count;
+		return true;
+	}
+
+	bool decodeOperands(const ZydisDecodedInstruction& instr, InstructionOperands& out)
+	{
+		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, nullptr, &instr, out.operands, sizeof(out.operands))))
+			return false;
+		
+		out.count = instr.operand_count;
 		return true;
 	}
 
@@ -333,6 +359,15 @@ public:
 
 		uint64_t absAddr = 0;
 		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&zydisInstr, &operand, instr.address, &absAddr)))
+			return 0;
+
+		return absAddr;
+	}
+
+	uint64_t decodeAbsoluteMemoryAddress(const ZydisDecodedInstruction& instr, const ZydisDecodedOperand& operand, Address runtimeAddress)
+	{
+		uint64_t absAddr = 0;
+		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&instr, &operand, runtimeAddress, &absAddr)))
 			return 0;
 
 		return absAddr;
