@@ -36,7 +36,6 @@ code quality, portability, and maintainability.
 - Encoder (planned)
 - Thread manipulation
 - Hooking utilities
-- Access control system
 
 ## Integration
 
