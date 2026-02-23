@@ -307,7 +307,7 @@ public:
 
 	bool decodeOperands(const ZydisDecodedInstruction& instr, InstructionOperands& out)
 	{
-		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, nullptr, &instr, out.operands, sizeof(out.operands))))
+		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, nullptr, &instr, out.operands, InstructionOperands::MaxOperands)))
 			return false;
 		
 		out.count = instr.operand_count;
