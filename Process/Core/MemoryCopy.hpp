@@ -114,18 +114,7 @@ public:
      *
      * @return True if the read succeeds.
      */
-	bool readIn(uint64_t addr, size_t size = 0);
-
-    //Todo: might be obsolete
-    /**
-     * @brief Read remote memory from a pointer-chain endpoint.
-     *
-     * @param[in] ptrEndpoint Resolved endpoint of a pointer chain.
-     * @param[in] size        Number of bytes to read (0 = use current size).
-     *
-     * @return True if the read succeeds.
-     */
-	bool readIn(PointerEndpoint ptrEndpoint, size_t size = 0);
+	bool readFrom(Address addr);
 
     //==================================================================
     // Write back to target process
@@ -145,16 +134,7 @@ public:
      *
      * @return True if the write succeeds.
      */
-	bool writeBack(uint64_t addr);
-
-    /**
-     * @brief Write the internal buffer to a pointer-chain endpoint.
-     *
-     * @param[in] ptrEndpoint Resolved endpoint of a pointer chain.
-     *
-     * @return True if the write succeeds.
-     */
-	bool writeBack(PointerEndpoint ptrEndpoint);
+	bool writeTo(Address addr);
 
     //==================================================================
     // Buffer access

@@ -84,28 +84,9 @@ bool MemoryCopy::readIn()
         return false;
 }
 
-bool MemoryCopy::readIn(uint64_t addr, size_t size)
+bool MemoryCopy::readFrom(Address remoteAddress)
 {
-    if (size)
-    {
-        this->_size = size;
-        if (size > this->_bufferSize)
-            resize(size);
-    }
-    this->_chainAddr = PointerEndpoint(addr);
-    return readIn();
-}
-
-bool MemoryCopy::readIn(PointerEndpoint chainAddr, size_t size)
-{
-    if (size)
-    {
-        this->_size = size;
-        if (size > this->_bufferSize)
-            resize(size);
-    }
-    this->_chainAddr = chainAddr;
-    return readIn();
+    return _memory->read(remoteAddress, _size, _buffer.get());
 }
 
 bool MemoryCopy::writeBack()
@@ -116,16 +97,9 @@ bool MemoryCopy::writeBack()
         return false;
 }
 
-bool MemoryCopy::writeBack(uint64_t addr)
+bool MemoryCopy::writeTo(Address remoteAddress)
 {
-    this->_chainAddr = PointerEndpoint(addr);
-    return writeBack();
-}
-
-bool MemoryCopy::writeBack(PointerEndpoint chainAddr)
-{
-    this->_chainAddr = chainAddr;
-    return writeBack();
+    return _memory->write(remoteAddress, _size, _buffer.get());
 }
 
 bool MemoryCopy::readFromBuffer(uint64_t offset, size_t size, void* buffer) const
