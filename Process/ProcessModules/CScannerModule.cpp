@@ -577,5 +577,115 @@ Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSiz
     return 0;
 }
 
+std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module, Address relativeTargetAddress)
+{
+    if (!module.valid() || relativeTargetAddress >= module.size)
+        return {};
+
+    std::vector<Address> crossRefs;
+
+    auto& decoder = this->_backPtr->getDecoder();
+
+    const Address absoluteTargetAddress = module.baseAddress + relativeTargetAddress;
+
+    std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
+    size_t bufferSize = 0x1000;
+
+    auto regions = _memory->queryAllMemoryRegions(module, ProtectionFilter::require(EMemoryProtection::Execute));
+    for (const auto& region : regions)
+    {
+        if (region.regionSize > bufferSize)
+        {
+            buffer = std::make_unique<BYTE[]>(region.regionSize);
+            bufferSize = region.regionSize;
+        }
+
+        if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
+            continue;
+
+        const BYTE* curByte = buffer.get();
+        size_t remainingSize = region.regionSize;
+        uint64_t runtimeAddress = region.baseAddress;
+        //CompactInstruction instr;
+        ZydisDecodedInstruction instr;
+        InstructionOperands operands;
+
+        while (decoder.decodeNext(curByte, remainingSize, runtimeAddress, instr))
+        {
+            bool hasPotentialAddress = (instr.raw.disp.size != 0) || 
+                               (instr.raw.imm[0].size != 0) || 
+                               (instr.raw.imm[1].size != 0);
+            
+            bool isRelative = (instr.attributes & ZYDIS_ATTRIB_IS_RELATIVE);
+
+            if (!hasPotentialAddress && !isRelative)
+            {
+                continue;
+            }
+
+            if (decoder.decodeOperands(instr, operands))
+            {
+                for (size_t i = 0; i < operands.count; i++)
+                {
+                    if (operands[i].type == ZYDIS_OPERAND_TYPE_MEMORY || operands[i].type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
+                    {
+                        Address addr = decoder.decodeAbsoluteMemoryAddress(instr, operands[i], runtimeAddress);
+                        if (addr == absoluteTargetAddress)
+                            crossRefs.push_back(runtimeAddress);
+                    }
+                }
+            }
+        }
+    }
+
+    return crossRefs;
+}
+
+std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy, Address relativeTargetAddress)
+{
+    //Todo: This method is problematic since it won't work as expected on copies from a module
+    //We should consider to store vmemory mapping info inside memCopy
+
+    if (!memCopy.valid() || relativeTargetAddress >= memCopy.getSize())
+        return {};
+
+    const BYTE* curByte = memCopy.getBuffer();
+    size_t remainingSize = memCopy.getSize();
+    uint64_t runtimeAddress = memCopy.getBaseAddress();
+    //CompactInstruction instr;
+    ZydisDecodedInstruction instr;
+    InstructionOperands operands;
+
+    std::vector<Address> crossRefs;
+    auto& decoder = this->_backPtr->getDecoder();
+    const Address absoluteTargetAddress = memCopy.getBaseAddress() + relativeTargetAddress;
+
+    while (decoder.decodeNext(curByte, remainingSize, runtimeAddress, instr))
+    {
+        bool hasPotentialAddress = (instr.raw.disp.size != 0) || 
+                           (instr.raw.imm[0].size != 0) || 
+                           (instr.raw.imm[1].size != 0);
+        
+        bool isRelative = (instr.attributes & ZYDIS_ATTRIB_IS_RELATIVE);
+        if (!hasPotentialAddress && !isRelative)
+        {
+            continue;
+        }
+        if (decoder.decodeOperands(instr, operands))
+        {
+            for (size_t i = 0; i < operands.count; i++)
+            {
+                if (operands[i].type == ZYDIS_OPERAND_TYPE_MEMORY || operands[i].type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
+                {
+                    Address addr = decoder.decodeAbsoluteMemoryAddress(instr, operands[i], runtimeAddress);
+                    if (addr == absoluteTargetAddress)
+                        crossRefs.push_back(runtimeAddress);
+                }
+            }
+        }
+    }
+    
+    return crossRefs;
+}
 
 }
