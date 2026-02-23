@@ -235,55 +235,70 @@ public:
 		return _platformLink->queryMemory(addr, memoryRegion);
 	}
 
-	/**
-     * @brief Query all memory regions in an address range.
+     /**
+     * @brief Query all memory regions within an address range.
      *
-     * Regions can be filtered using a ProtectionFilter to match specific
-     * access requirements.
+     * Enumerates memory regions in the interval [startAddr, maxAddr) and
+     * returns those that are in the committed state and satisfy the
+     * provided filter predicate.
      *
-     * @param startAddr        Inclusive start address of the query range.
-     * @param maxAddr          Exclusive end address of the query range.
-     * @param protectionFilter Protection filter to apply.
+     * The filter is optional. If no filter is provided, all committed
+     * regions within the specified range are returned.
      *
-     * @return List of matching memory regions.
+     * @param startAddr Inclusive start address of the query range.
+     * @param maxAddr   Exclusive end address of the query range.
+     * @param filter    Optional callable of type
+     *                  std::function<bool(const MemoryRegion&)>
+     *                  used to decide whether a region should be included.
+     *
+     * @return A vector containing all matching memory regions.
      */
-	std::vector<MemoryRegion> queryAllMemoryRegions(Address startAddr, Address maxAddr, ProtectionFilter protectionFilter = ProtectionFilter())
-	{
-		std::vector<MemoryRegion> regionList;
-		for (Address i = startAddr; i < maxAddr;)
-		{
-			MemoryRegion mr;
-			if (queryMemory(i, mr))
-			{
-				if (mr.state == EMemoryState::Committed && protectionFilter.matchesProtection(mr.protection))
-				{
-					regionList.push_back(mr);
-				}
-				i = mr.baseAddress + mr.regionSize;;
-			}
-			else
-			{
-				break;
-			}
-		}
-
-		return regionList;
-	}
+     std::vector<MemoryRegion> queryAllMemoryRegions(Address startAddr, Address maxAddr, const MemoryRegionFilter& filter = {})
+     {
+          std::vector<MemoryRegion> regionList;
+          for (Address i = startAddr; i < maxAddr;)
+          {
+               MemoryRegion mr;
+               if (queryMemory(i, mr))
+               {
+                    if (mr.state == EMemoryState::Committed)
+                    {
+                         // Optionally filter regions
+                         if (!filter || filter(mr))
+                         {
+                              regionList.push_back(mr);
+                         }
+                    }
+                    i = mr.baseAddress + mr.regionSize;
+               }
+               else
+               {
+                    break;
+               }
+         }
+         return regionList;
+     }
 
      /**
-     * @brief Query all memory regions in an address range.
+     * @brief Query all memory regions within an address range.
      *
-     * Regions can be filtered using a ProtectionFilter to match specific
-     * access requirements.
+     * Enumerates memory regions in the interval [startAddr, maxAddr) and
+     * returns those that are in the committed state and satisfy the
+     * provided filter predicate.
      *
-     * @param memRange         The query Range 
-     * @param protectionFilter Protection filter to apply.
+     * The filter is optional. If no filter is provided, all committed
+     * regions within the specified range are returned.
      *
-     * @return List of matching memory regions.
+     * @param memRange  The query Range
+     * @param filter    Optional callable of type
+     *                  std::function<bool(const MemoryRegion&)>
+     *                  used to decide whether a region should be included.
+     *
+     * @return A vector containing all matching memory regions.
      */
-     std::vector<MemoryRegion> queryAllMemoryRegions(const MemoryRange& memRange, ProtectionFilter protectionFilter = ProtectionFilter())
+     std::vector<MemoryRegion> queryAllMemoryRegions(const MemoryRange& memRange, const MemoryRegionFilter& filter = {})
      {
-          return queryAllMemoryRegions(memRange.startAddr, memRange.stopAddr, protectionFilter);
+          return queryAllMemoryRegions(memRange.startAddr, memRange.stopAddr, filter);
      }
 
 private:

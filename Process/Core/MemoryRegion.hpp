@@ -5,13 +5,14 @@
 
 #pragma once
 
-#include <stdint.h>
-
 #include "../Types/Address.hpp"
 #include "../Types/MemoryRange.hpp"
 #include "../Types/EMemoryProtection.hpp"
 #include "../Types/EMemoryState.hpp"
 #include "../Types/EMemoryType.hpp"
+
+#include <stdint.h>
+#include <functional>
 
 namespace Azoth
 {
@@ -117,6 +118,9 @@ struct MemoryRegion
      */
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + regionSize); };
 };
+
+
+using MemoryRegionFilter = std::function<bool(const MemoryRegion&)>;
 
 
 /* @class ProtectionFilter
