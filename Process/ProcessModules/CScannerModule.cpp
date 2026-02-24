@@ -254,7 +254,7 @@ Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern
 // 
 //--------------------------------------------------------
 
-Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter)
+Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -274,9 +274,8 @@ Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, 
         if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
             continue;
 
-        //Todo: Check for alignment?
         const BYTE* regionEnd = buffer.get() + region.regionSize;
-        for (BYTE* curByte = buffer.get(); curByte + valueSize < regionEnd; curByte++)
+        for (BYTE* curByte = Address::alignUp(buffer.get(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
         {
             if (memcmp(curByte, value, valueSize) == 0)
             {
@@ -289,18 +288,18 @@ Address CScannerModule::findNextValue(const MemoryRange& memRange, BYTE* value, 
     return 0;
 }
 
-Address CScannerModule::findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter)
+Address CScannerModule::findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
-    return findNextValue(MemoryRange(start, stop), value, valueSize, filter);
+    return findNextValue(MemoryRange(start, stop), value, valueSize, filter, alignment);
 }
 
-Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter)
+Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
     if (!memCopy.valid())
         return 0;
 
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = memCopy.getBuffer(); curByte + valueSize < regionEnd; curByte++)
+    for (BYTE* curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
     {
         if (memcmp(curByte, value, valueSize) == 0)
         {
@@ -310,7 +309,7 @@ Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, si
     return 0;
 }
 
-std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter)
+std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
     std::vector<Address> results;
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
@@ -331,9 +330,8 @@ std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, 
         if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
             continue;
 
-        //Todo: Check for alignment?
         const BYTE* regionEnd = buffer.get() + region.regionSize;
-        for (BYTE* curByte = buffer.get(); curByte + valueSize < regionEnd; curByte++)
+        for (BYTE* curByte = Address::alignUp(buffer.get(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
         {
             if (memcmp(curByte, value, valueSize) == 0)
             {
@@ -346,16 +344,16 @@ std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, 
     return results;
 }
 
-std::vector<Address> CScannerModule::findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter)
+std::vector<Address> CScannerModule::findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
-    return findAllValues(MemoryRange(start, stop), value, valueSize, filter);
+    return findAllValues(MemoryRange(start, stop), value, valueSize, filter, alignment);
 }
 
-std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter)
+std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
     std::vector<Address> results;
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = memCopy.getBuffer(); curByte + valueSize < regionEnd; curByte++)
+    for (BYTE* curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
     {
         if (memcmp(curByte, value, valueSize) == 0)
         {
@@ -512,7 +510,7 @@ std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrin
     return results;
 }
 
-Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize)
+Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize, size_t alignment)
 {
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -528,9 +526,9 @@ Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minS
 
         if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
             continue;
-        //Todo: Align curByte
+
         const BYTE* regionEnd = buffer.get() + region.regionSize;
-        for (BYTE* curByte = buffer.get(); curByte + minSize < regionEnd; curByte += 4)
+        for (BYTE* curByte = Address::alignUp(buffer.get(), alignment); curByte + minSize < regionEnd; curByte += alignment)
         {
             if (*curByte == *(curByte + 1))
             {
@@ -547,25 +545,24 @@ Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minS
     return 0;
 }
 
-Address CScannerModule::scanForCodeCave(Address start, Address stop, size_t minSize)
+Address CScannerModule::scanForCodeCave(Address start, Address stop, size_t minSize, size_t alignment)
 {
-    return scanForCodeCave(MemoryRange(start, stop), minSize);
+    return scanForCodeCave(MemoryRange(start, stop), minSize, alignment);
 }
 
-Address CScannerModule::scanForCodeCave(size_t minSize)
+Address CScannerModule::scanForCodeCave(size_t minSize, size_t alignment)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
-        return scanForCodeCave(MemoryRange::max_range_32bit(), minSize);
+        return scanForCodeCave(MemoryRange::max_range_32bit(), minSize, alignment);
     else
-        return scanForCodeCave(MemoryRange::max_range_64bit(), minSize);
+        return scanForCodeCave(MemoryRange::max_range_64bit(), minSize, alignment);
 }
 
-Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize)
+Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment)
 {
-    //Todo: Align curByte
     const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte += 4)
+    for (BYTE* curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + minSize < regionEnd; curByte += alignment)
     {
         if (*curByte == *(curByte + 1))
         {

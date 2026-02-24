@@ -111,11 +111,11 @@ public:
 	 *
 	 * @return Address of the first occurrence after @p start, or 0 if not found.
 	 */
-	Address findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {});
+	Address findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
-	Address findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {});
+	Address findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
-	Address findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {});
+	Address findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
 	/**
 	 * @brief Finds the next occurrence of a raw value in memory.
@@ -127,19 +127,19 @@ public:
 	 * @return Address of the first occurrence after @p start, or 0 if not found.
 	 */
 	template <typename T>
-	Address findNextValue(const MemoryRange& memRange, T value, const MemoryRegionFilter& filter = {})
+	Address findNextValue(const MemoryRange& memRange, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findNextValue(memRange, (BYTE*)&value, sizeof(value), filter);
 	}
 
 	template <typename T>
-	Address findNextValue(Address start, Address stop, T value, const MemoryRegionFilter& filter = {})
+	Address findNextValue(Address start, Address stop, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findNextValue(start, stop, (BYTE*)&value, sizeof(value), filter);
 	}
 
 	template <typename T>
-	Address findNextValue(const MemoryCopy& memCopy, T value, const MemoryRegionFilter& filter = {})
+	Address findNextValue(const MemoryCopy& memCopy, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findNextValue(memCopy, (BYTE*)&value, sizeof(value), filter);
 	}
@@ -151,11 +151,11 @@ public:
 	 * 
 	 * @return A list of addresses where the value was found.
 	 */
-	std::vector<Address> findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {});
+	std::vector<Address> findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
-	std::vector<Address> findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {});
+	std::vector<Address> findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
-	std::vector<Address> findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {});
+	std::vector<Address> findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
 	/**
 	 * @brief Finds all occurrences of a raw value in memory.
@@ -167,19 +167,19 @@ public:
 	 * @return A list of addresses where the value was found.
 	 */
 	template <typename T>
-	std::vector<Address> findAllValues(const MemoryRange& memRange, T value, const MemoryRegionFilter& filter = {})
+	std::vector<Address> findAllValues(const MemoryRange& memRange, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findAllValues(memRange, (BYTE*)&value, sizeof(value), filter);
 	}
 
 	template <typename T>
-	std::vector<Address> findAllValues(Address start, Address stop, T value, const MemoryRegionFilter& filter = {})
+	std::vector<Address> findAllValues(Address start, Address stop, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findAllValues(start, stop, (BYTE*)&value, sizeof(value), filter);
 	}
 
 	template <typename T>
-	std::vector<Address> findAllValues(const MemoryCopy& memCopy, T value, const MemoryRegionFilter& filter = {})
+	std::vector<Address> findAllValues(const MemoryCopy& memCopy, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findAllValues(memCopy, (BYTE*)&value, sizeof(value), filter);
 	}
@@ -228,13 +228,13 @@ public:
 	 *
 	 * @return Address of the first suitable code cave, or 0 if none was found.
 	 */
-	Address scanForCodeCave(const MemoryRange& memRange, size_t minSize);
+	Address scanForCodeCave(const MemoryRange& memRange, size_t minSize, size_t alignment = 1);
 
-	Address scanForCodeCave(Address start, Address stop, size_t minSize);
+	Address scanForCodeCave(Address start, Address stop, size_t minSize, size_t alignment = 1);
 
-	Address scanForCodeCave(size_t minSize);
+	Address scanForCodeCave(size_t minSize, size_t alignment = 1);
 
-	Address scanForCodeCave(const MemoryCopy& memCopy, size_t minSize);
+	Address scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment = 1);
 
 	/**
 	 * @brief Finds all cross-references to a relative address within a module.
