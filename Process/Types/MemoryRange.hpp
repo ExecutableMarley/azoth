@@ -152,6 +152,20 @@ public:
         return MemoryRange(start, stop);
     }
 
+    uint64_t toRelative(Address absolute) const
+    {
+        //Consider int64_t
+        //Consider special rel Address type
+        assert(this->contains(absolute));
+        return absolute - startAddr;
+    }
+
+    Address toAbsolute(uint64_t relative) const
+    {
+        assert(relative < this->size());
+        return startAddr + relative;
+    }
+
     /**
      * @brief Maximum possible address range for a 32-bit address space.
      *
