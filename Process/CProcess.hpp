@@ -264,7 +264,7 @@ public:
         	}
         	std::this_thread::sleep_for(interval);
     	}
-    	return false; //Timeout
+    	return _platformLink->setError(EPlatformError::OperationTimeout);
 	}
 
 	//ImageSymbols?

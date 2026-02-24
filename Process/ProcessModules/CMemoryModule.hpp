@@ -359,7 +359,7 @@ public:
 
           if (isExactMatch)
           {
-               if (it->second.size != size) { return setError(EPlatformError::InvalidArgument); }
+               if (it->second.size != size) { return setError(EPlatformError::RestorationViolation); }
 
                if (it->second.origProtect == newProtect) { shouldDeleteEntry = true; }
           }
@@ -368,7 +368,7 @@ public:
                // Forward overlap
                if (it != _pageProtectRestoreMap.end() && it->first < end)
                {
-                    return setError(EPlatformError::InvalidArgument);
+                    return setError(EPlatformError::RestorationViolation);
                }
 
                // Backward overlap
@@ -377,7 +377,7 @@ public:
                     auto prev = std::prev(it);
                     if (prev->first + prev->second.size > addr)
                     {
-                         return setError(EPlatformError::InvalidArgument);
+                         return setError(EPlatformError::RestorationViolation);
                     }
                }
                shouldAddEntry = true;
@@ -537,21 +537,21 @@ private:
           if (it != _codeMemoryRestoreMap.end() && it->first == addr)
           {
                if (it->second.size != size)
-                    return setError(EPlatformError::InvalidArgument);
+                    return setError(EPlatformError::RestorationViolation);
 
                return setError(EPlatformError::Success);
           }
 
           // Forward overlap
           if (it != _codeMemoryRestoreMap.end() && it->first < end)
-               return setError(EPlatformError::InvalidArgument);
+               return setError(EPlatformError::RestorationViolation);
 
           // Backward overlap
           if (it != _codeMemoryRestoreMap.begin())
           {
                auto prev = std::prev(it);
                if (prev->first + prev->second.size > addr)
-                    return setError(EPlatformError::InvalidArgument);
+                    return setError(EPlatformError::RestorationViolation);
           }
 
           // Capture original bytes
