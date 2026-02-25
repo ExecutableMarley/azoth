@@ -170,3 +170,15 @@ int main()
 ## Status
 
 TODO
+
+## Disclaimer
+
+Azoth is intended for educational, research, and legitimate software development purposes.
+
+While the default interface does not expose inherently malicious functionality, the provided low-level process and memory manipulation can potentially be misused. 
+
+The author does not endorse or support the use of this software for:
+- Unauthorized access to systems or software
+- Circumvention of security mechanisms
+- Violation of software licenses or terms of service
+- Any illegal or unethical activity
