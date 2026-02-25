@@ -34,6 +34,9 @@ class MemoryCopy
 {
     friend class CMemoryModule;
 public:
+    /**
+     * @brief Constructs an unbound and invalid MemoryCopy
+     */
 	MemoryCopy();
 
 protected:
@@ -70,6 +73,9 @@ public:
     /**
      * @brief Retrieve the resolved base address used for copying.
      *
+     * This is the resolved base address in the target process at the time of
+     * the call.
+     * 
      * @tparam T Returned integer type (defaults to uint64_t).
      * @return Base address in the target process.
      */
@@ -184,7 +190,9 @@ public:
     /**
      * @brief Read a typed value from the internal buffer.
      *
-     * @tparam T Value type.
+     * Equivalent to calling readFromBuffer(offset, sizeof(T), &buffer).
+     * 
+     * @tparam T Must be trivially copyable.
      * @param[in] offset Byte offset within the internal buffer.
      *
      * @return The value, or T{} if out of bounds.
@@ -203,7 +211,9 @@ public:
     /**
      * @brief Write a typed value into the internal buffer.
      *
-     * @tparam T Value type.
+     * Equivalent to calling writeToBuffer(offset, sizeof(T), &value).
+     * 
+     * @tparam T Must be trivially copyable.
      * @param[in] offset Byte offset within the internal buffer.
      * @param[in] value  Value to write.
      *
