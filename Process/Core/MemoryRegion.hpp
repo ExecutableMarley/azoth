@@ -13,6 +13,9 @@
 
 #include <stdint.h>
 #include <functional>
+#include <ostream>
+#include <sstream>
+#include <iomanip>
 
 namespace Azoth
 {
@@ -119,6 +122,33 @@ struct MemoryRegion
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + regionSize); };
 };
 
+inline std::ostream& operator<<(std::ostream& os, const MemoryRegion& region)
+{
+    if (!region.valid())
+        return os << "MemoryRegion{ invalid }";
+
+    Address base(region.baseAddress);
+    Address end(region.baseAddress + region.regionSize);
+
+    os << "MemoryRegion{ "
+       << "range=[" << base << " - " << end << ")"
+       << ", size=0x" << std::hex << region.regionSize
+       << std::dec
+       << " (" << region.regionSize << " bytes)"
+       << ", prot=" << region.protection
+       << ", state=" << region.state
+       << ", type=" << region.type
+       << " }";
+
+    return os;
+}
+
+inline std::string to_string(const MemoryRegion& region)
+{
+    std::ostringstream oss;
+    oss << region;
+    return oss.str();
+}
 
 using MemoryRegionFilter = std::function<bool(const MemoryRegion&)>;
 
