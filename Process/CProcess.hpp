@@ -34,6 +34,8 @@
 
 #include <string>
 #include <memory>
+#include <chrono>
+#include <thread>
 #include <cassert>
 
 namespace Azoth
@@ -235,6 +237,34 @@ public:
 		std::vector<ProcessImage> procImages;
 		_platformLink->getAllProcessImages(procImages);
 		return procImages;
+	}
+
+	/**
+ 	 * @brief Attempts to retrieve a process image, polling if not immediately found.
+	 * 
+	 * @param name      Module or image name.
+	 * @param outImage  Reference to store the retrieved image.
+	 * @param timeout   Maximum time to wait (e.g., std::chrono::milliseconds).
+	 * @param interval  Time between retries.
+	 * @return          true if found within the timeout, false otherwise.
+	 */
+	bool waitForProcessImage(const std::string& name, ProcessImage& outImage, 
+                         std::chrono::milliseconds timeout = std::chrono::milliseconds(2000), 
+                         std::chrono::milliseconds interval = std::chrono::milliseconds(100)) 
+	{
+    	auto start = std::chrono::steady_clock::now();
+    	while (std::chrono::steady_clock::now() - start < timeout)
+		{
+        	if (_platformLink->getProcessImage(name, outImage))
+			{
+        	    if (outImage.valid())
+				{ 
+        	    	return true; 
+        	    }
+        	}
+        	std::this_thread::sleep_for(interval);
+    	}
+    	return _platformLink->setError(EPlatformError::OperationTimeout);
 	}
 
 	//ImageSymbols?

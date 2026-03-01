@@ -5,7 +5,6 @@
 build/
 
 # Doxygen Output
-Doxyfile
 docs/
 
 # Local tests
