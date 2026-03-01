@@ -28,6 +28,7 @@ enum class EPlatformError : uint32_t
 	SymbolNotFound,    // Required OS symbol could not be resolved
 	ResourceNotFound,  // Process, File or Image not found
 	//EntryNotFound,        // Specific tracking entry was not found
+    ProcessLost,       // Target was found and attached, but has since exited
     InvalidArgument,   // Bad arguments passed
 	AccessDenied,      // Permission issue
 	RestorationViolation, // Operation would create overlapping or conflicting restoration points.
