@@ -72,7 +72,7 @@ public:
 	/**
      * @brief Boolean conversion indicating validity.
      */
-	operator bool() const { return valid(); }
+	explicit operator bool() const { return valid(); }
 
 	/**
      * @brief Convert the image to its corresponding memory range.

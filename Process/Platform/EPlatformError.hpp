@@ -24,11 +24,13 @@ enum class EPlatformError : uint32_t
 	NotImplemented,    // Platform backend does not implement this feature
 	NotSupported,      // this OS Backend fundamentally cannot support this feature
 	InvalidState,      // Wrong order of operations attempted
+    OperationTimeout,  // The operation timed out
 	SymbolNotFound,    // Required OS symbol could not be resolved
 	ResourceNotFound,  // Process, File or Image not found
-	InvalidArgument,   // Bad arguments passed
+	//EntryNotFound,        // Specific tracking entry was not found
+    InvalidArgument,   // Bad arguments passed
 	AccessDenied,      // Permission issue
-	RestorationViolation, // Overlapping restore entries are not allowed
+	RestorationViolation, // Operation would create overlapping or conflicting restoration points.
     MalformedData,     // Unexpected or invalid data was found
     DecodeError,       // osError contains ZyanStatus
     InternalError      // OS-specific error occurred. osError contains os error code
@@ -72,6 +74,7 @@ constexpr std::string_view to_string(EPlatformError err) noexcept
         case NotImplemented:       return "NotImplemented";
         case NotSupported:         return "NotSupported";
         case InvalidState:         return "InvalidState";
+        case OperationTimeout:     return "OperationTimeout";
         case SymbolNotFound:       return "SymbolNotFound";
         case ResourceNotFound:     return "ResourceNotFound";
         case InvalidArgument:      return "InvalidArgument";

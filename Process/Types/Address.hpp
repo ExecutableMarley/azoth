@@ -10,6 +10,7 @@
 #include <ostream>
 #include <sstream>
 #include <iomanip>
+#include <cassert>
 
 namespace Azoth
 {
@@ -65,6 +66,7 @@ public:
      */
     constexpr Address alignDown(value_type align) const noexcept
     {
+        assert(align != 0 && (align & (align - 1)) == 0);
 	    return Address(value & ~(align - 1));
     }
 
@@ -73,11 +75,13 @@ public:
      */
     constexpr Address alignUp(value_type align) const noexcept
     {
+        assert(align != 0 && (align & (align - 1)) == 0);
 	    return Address((value + align - 1) & ~(align - 1));
     }
 
     constexpr bool isAligned(value_type align) const noexcept
     {
+        assert(align != 0 && (align & (align - 1)) == 0);
         return value == (value & ~(align-1));
     }
 
@@ -147,6 +151,7 @@ public:
     template <typename T>
     static inline T* alignDown(T* ptr, size_t align) noexcept
     {
+        assert(align != 0 && (align & (align - 1)) == 0);
         uintptr_t addr = reinterpret_cast<std::uintptr_t>(ptr);
         uintptr_t aligned_addr = (addr & ~(align -1));
         return reinterpret_cast<T*>(aligned_addr);
@@ -155,6 +160,7 @@ public:
     template <typename T>
     static inline T* alignUp(T* ptr, size_t align) noexcept
     {
+        assert(align != 0 && (align & (align - 1)) == 0);
         uintptr_t addr = reinterpret_cast<std::uintptr_t>(ptr);
         uintptr_t aligned_addr = ((addr + align - 1) & ~(align - 1));
         return reinterpret_cast<T*>(aligned_addr);
@@ -163,6 +169,7 @@ public:
     template <typename T>
     static inline bool isAligned(T* ptr, size_t align) noexcept
     {
+        assert(align != 0 && (align & (align - 1)) == 0);
         return (reinterpret_cast<std::uintptr_t>(ptr) & (align - 1)) == 0;
     }
 };

@@ -34,6 +34,9 @@ class MemoryCopy
 {
     friend class CMemoryModule;
 public:
+    /**
+     * @brief Constructs an unbound and invalid MemoryCopy
+     */
 	MemoryCopy();
 
 protected:
@@ -70,6 +73,9 @@ public:
     /**
      * @brief Retrieve the resolved base address used for copying.
      *
+     * This is the resolved base address in the target process at the time of
+     * the call.
+     * 
      * @tparam T Returned integer type (defaults to uint64_t).
      * @return Base address in the target process.
      */
@@ -114,18 +120,7 @@ public:
      *
      * @return True if the read succeeds.
      */
-	bool readIn(uint64_t addr, size_t size = 0);
-
-    //Todo: might be obsolete
-    /**
-     * @brief Read remote memory from a pointer-chain endpoint.
-     *
-     * @param[in] ptrEndpoint Resolved endpoint of a pointer chain.
-     * @param[in] size        Number of bytes to read (0 = use current size).
-     *
-     * @return True if the read succeeds.
-     */
-	bool readIn(PointerEndpoint ptrEndpoint, size_t size = 0);
+	bool readFrom(Address addr);
 
     //==================================================================
     // Write back to target process
@@ -145,16 +140,7 @@ public:
      *
      * @return True if the write succeeds.
      */
-	bool writeBack(uint64_t addr);
-
-    /**
-     * @brief Write the internal buffer to a pointer-chain endpoint.
-     *
-     * @param[in] ptrEndpoint Resolved endpoint of a pointer chain.
-     *
-     * @return True if the write succeeds.
-     */
-	bool writeBack(PointerEndpoint ptrEndpoint);
+	bool writeTo(Address addr);
 
     //==================================================================
     // Buffer access
@@ -204,7 +190,9 @@ public:
     /**
      * @brief Read a typed value from the internal buffer.
      *
-     * @tparam T Value type.
+     * Equivalent to calling readFromBuffer(offset, sizeof(T), &buffer).
+     * 
+     * @tparam T Must be trivially copyable.
      * @param[in] offset Byte offset within the internal buffer.
      *
      * @return The value, or T{} if out of bounds.
@@ -223,7 +211,9 @@ public:
     /**
      * @brief Write a typed value into the internal buffer.
      *
-     * @tparam T Value type.
+     * Equivalent to calling writeToBuffer(offset, sizeof(T), &value).
+     * 
+     * @tparam T Must be trivially copyable.
      * @param[in] offset Byte offset within the internal buffer.
      * @param[in] value  Value to write.
      *

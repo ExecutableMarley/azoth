@@ -5,13 +5,17 @@
 
 #pragma once
 
-#include <stdint.h>
-
 #include "../Types/Address.hpp"
 #include "../Types/MemoryRange.hpp"
 #include "../Types/EMemoryProtection.hpp"
 #include "../Types/EMemoryState.hpp"
 #include "../Types/EMemoryType.hpp"
+
+#include <stdint.h>
+#include <functional>
+#include <ostream>
+#include <sstream>
+#include <iomanip>
 
 namespace Azoth
 {
@@ -116,6 +120,142 @@ struct MemoryRegion
      * [baseAddress, baseAddress + regionSize).
      */
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + regionSize); };
+};
+
+inline std::ostream& operator<<(std::ostream& os, const MemoryRegion& region)
+{
+    if (!region.valid())
+        return os << "MemoryRegion{ invalid }";
+
+    Address base(region.baseAddress);
+    Address end(region.baseAddress + region.regionSize);
+
+    os << "MemoryRegion{ "
+       << "range=[" << base << " - " << end << ")"
+       << ", size=0x" << std::hex << region.regionSize
+       << std::dec
+       << " (" << region.regionSize << " bytes)"
+       << ", prot=" << region.protection
+       << ", state=" << region.state
+       << ", type=" << region.type
+       << " }";
+
+    return os;
+}
+
+inline std::string to_string(const MemoryRegion& region)
+{
+    std::ostringstream oss;
+    oss << region;
+    return oss.str();
+}
+
+using MemoryRegionFilter = std::function<bool(const MemoryRegion&)>;
+
+
+/* @class ProtectionFilter
+ * @brief Fine-grained filter for matching memory protection states.
+ *
+ * ProtectionFilter allows expressing requirements for individual protection
+ * flags independently. Each permission can be:
+ * 
+ * - Ignore  : do not care about this flag
+ * - Require : the flag must be present
+ * - Forbid  : the flag must NOT be present
+ */
+class ProtectionFilter
+{
+public:
+    enum ProtectionState : uint8_t
+    {
+        Ignore,
+        Require,
+        Forbid
+    };
+
+    ProtectionState read    = ProtectionState::Ignore;
+    ProtectionState write   = ProtectionState::Ignore;
+    ProtectionState execute = ProtectionState::Ignore;
+
+    constexpr ProtectionFilter() = default;
+
+    constexpr ProtectionFilter(ProtectionState r, ProtectionState w, ProtectionState e)
+        : read(r), write(w), execute(e) {}
+
+    static constexpr ProtectionFilter exact(EMemoryProtection prot)
+    {
+        return {
+            (prot & EMemoryProtection::Read)    != EMemoryProtection::None ? ProtectionState::Require : ProtectionState::Forbid,
+            (prot & EMemoryProtection::Write)   != EMemoryProtection::None ? ProtectionState::Require : ProtectionState::Forbid,
+            (prot & EMemoryProtection::Execute) != EMemoryProtection::None ? ProtectionState::Require : ProtectionState::Forbid
+        };
+    }
+
+    static constexpr ProtectionFilter require(EMemoryProtection prot)
+    {
+        return {
+            (prot & EMemoryProtection::Read)    != EMemoryProtection::None ? ProtectionState::Require : ProtectionState::Ignore,
+            (prot & EMemoryProtection::Write)   != EMemoryProtection::None ? ProtectionState::Require : ProtectionState::Ignore,
+            (prot & EMemoryProtection::Execute) != EMemoryProtection::None ? ProtectionState::Require : ProtectionState::Ignore
+        };
+    }
+
+    static constexpr ProtectionFilter mask(int8_t r, int8_t w, int8_t e)
+    {
+        auto conv = [](int8_t v) constexpr -> ProtectionState {
+            return (v > 0) ? ProtectionState::Require :
+                   (v < 0) ? ProtectionState::Forbid :
+                             ProtectionState::Ignore;
+            };
+        return { conv(r), conv(w), conv(e) };
+    }
+
+    constexpr ProtectionFilter& requireRead()  { read    = ProtectionState::Require; return *this; }
+    constexpr ProtectionFilter& forbidRead()   { read    = ProtectionState::Forbid;  return *this; }
+    constexpr ProtectionFilter& requireWrite() { write   = ProtectionState::Require; return *this; }
+    constexpr ProtectionFilter& forbidWrite()  { write   = ProtectionState::Forbid;  return *this; }
+    constexpr ProtectionFilter& requireExec()  { execute = ProtectionState::Require; return *this; }
+    constexpr ProtectionFilter& forbidExec()   { execute = ProtectionState::Forbid;  return *this; }
+
+    constexpr bool checkProtection(ProtectionState filterState, EMemoryProtection actual, EMemoryProtection flag) const
+    {
+        bool isPresent = (actual & flag) != EMemoryProtection::None;
+
+        if (filterState == ProtectionState::Require)
+        {
+            return isPresent;
+        }
+        else if (filterState == ProtectionState::Forbid)
+        {
+            return !isPresent;
+        }
+        return true;
+    }
+
+    constexpr bool matchesProtection(EMemoryProtection actual) const
+    {
+        if (!checkProtection(read, actual, EMemoryProtection::Read))
+        {
+            return false;
+        }
+
+        if (!checkProtection(write, actual, EMemoryProtection::Write))
+        {
+            return false;
+        }
+
+        if(!checkProtection(execute, actual, EMemoryProtection::Execute))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    constexpr bool operator()(const MemoryRegion& r) const
+    {
+        return matchesProtection(r.protection);
+    }
 };
 
 
