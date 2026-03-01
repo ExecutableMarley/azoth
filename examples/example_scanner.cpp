@@ -8,9 +8,8 @@ using namespace Azoth;
 // Prepare test data in local process memory
 // ----------------------------
 
-std::string password = "S3cr3t!Passw0rd";
-
-std::string someString = "Hello World!";
+const char password[] = "S3cr3t!Passw0rd";
+const char someString[] = "Hello World!";
 
 int testValue = 1337;
 
@@ -21,8 +20,18 @@ BYTE testBuffer[16] = {
     0x99, 0x00, 0xAB, 0xCD
 };
 
+template<typename T>
+inline void anchor(T const& value)
+{
+    asm volatile("" : : "g"(&value) : "memory");
+}
+
 int main()
 {
+    // Pretend fake use. 'Should' stop the compiler from optimizing these away
+    anchor(password); anchor(someString); anchor(testValue); anchor(testBuffer);
+
+
     CProcess process(Platform::createDefaultLayer());
 
     // Initialize internal state
@@ -35,7 +44,7 @@ int main()
 
     std::cout << "Attached to process\n";
 
-    auto mainImage = process.getProcessMainImage();
+    ProcessImage mainImage = process.getProcessMainImage();
 
     auto& memory  = process.getMemory();
     auto& scanner = process.getScanner();
@@ -45,7 +54,9 @@ int main()
     // Pattern scanning
     // ----------------------------
 
-    Pattern pattern("AA BB CC DD 11 22 33 44");
+    //Performs a signature-based search (AOB) to locate specific byte sequences
+
+    Pattern pattern("AA BB CC DD ? ? 33 44");
 
     Address patternMatch = scanner.findPatternEx(mainImage, pattern, ProtectionFilter::exact(EMemoryProtection::ReadWrite));
 
@@ -70,6 +81,8 @@ int main()
     // Value scanning (typed)
     // ----------------------------
 
+    // Executes a type-safe search for a specific trivially copyable value (e.g., int)
+
     Address valueMatch = scanner.findNextValue<int>(mainImage, testValue);
 
     if (valueMatch)
@@ -80,6 +93,9 @@ int main()
     // ----------------------------
     // Raw data scanning
     // ----------------------------
+
+    // Scans for an exact byte-for-byte replica of a local buffer, useful for 
+    // locating structures, headers, or serialized data objects in memory.
 
     auto rawMatches = scanner.findAllValues(mainImage, (BYTE*)testBuffer, sizeof(testBuffer));
 
@@ -95,7 +111,10 @@ int main()
     // Scan for a code cave
     // ----------------------------
 
-    Address codeCave = scanner.scanForCodeCave(mainImage, 64);
+    // Searches for a 64-byte contiguous block of unused memory (e.g., 0x00 or padding) 
+    // within the process image, additionally enforcing a 16-byte alignment.
+
+    Address codeCave = scanner.scanForCodeCave(mainImage, 64, 16);
     
     if (codeCave)
     {
@@ -111,13 +130,14 @@ int main()
     // Scan for strings in module memory
     // ----------------------------
 
-    // Prevent compiler from optimizing password string away
-    std::cout << "The secret password has a size of: " << password.size() << std::endl;
+    // Identifies candidate passwords by scanning Read memory for strings 
+    // (min length 8) and filtering results against a standard password regex.
 
-    auto stringResults = scanner.scanForStrings(mainImage, 8, ProtectionFilter::exact(EMemoryProtection::ReadWrite));
+    auto stringResults = scanner.scanForStrings(mainImage, 8, ProtectionFilter::require(EMemoryProtection::Read));
     
     std::cout << "Found " << stringResults.size() << " strings in main image\n";
 
+    // Min 8 chars, at least one uppercase, one lowercase, one number, and one special character (@$!%*?&).
     std::regex passwordRegex(R"(^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$)");
 
     std::vector<std::pair<Address, std::string>> possiblePasswords;
