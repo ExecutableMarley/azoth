@@ -8,6 +8,8 @@
 #include <iomanip>
 #include <stdint.h>
 #include <string>
+#include <ostream>
+#include <sstream>
 
 #include "../Types/Address.hpp"
 #include "../Types/MemoryRange.hpp"
@@ -94,7 +96,7 @@ inline std::ostream& operator<<(std::ostream& os, const ProcessImage& img)
     const char oldFill = os.fill();
 
     os << "ProcessImage{ "
-       << "baseAddress=0x" << std::hex << std::setw(16) << std::setfill('0') << img.baseAddress 
+       << "baseAddress= " << img.baseAddress 
        << ", size=" << std::dec << img.size;
 
     if (!img.name.empty())
@@ -108,6 +110,13 @@ inline std::ostream& operator<<(std::ostream& os, const ProcessImage& img)
     os.flags(f);
     os.fill(oldFill);
     return os;
+}
+
+std::string to_string(const ProcessImage& img)
+{
+    std::ostringstream oss;
+    oss << img;
+    return oss.str();
 }
 
 class ImageSymbol
