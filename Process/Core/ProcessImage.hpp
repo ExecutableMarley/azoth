@@ -112,7 +112,7 @@ inline std::ostream& operator<<(std::ostream& os, const ProcessImage& img)
     return os;
 }
 
-std::string to_string(const ProcessImage& img)
+inline std::string to_string(const ProcessImage& img)
 {
     std::ostringstream oss;
     oss << img;
