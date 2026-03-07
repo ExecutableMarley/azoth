@@ -204,6 +204,22 @@ public:
 		return setError(retrieveAllProcessImages(this->_procID, processImages));
 	}
 
+	bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
+	{
+		if (!isAttached())
+			return setError(EPlatformError::InvalidState);
+
+		return setError(retrieveExportSymbols(image, symbols));
+	}
+
+	bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
+	{
+		if (!isAttached())
+			return setError(EPlatformError::InvalidState);
+
+		return setError(retrieveImportSymbols(image, symbols));
+	}
+
 	//=== Process Query ===//
 
 	bool getProcessIDByName(const std::string& name, uint32_t& procID) const override

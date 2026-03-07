@@ -620,8 +620,10 @@ PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, HMODULE 
         const DWORD funcRva = functions[ordinal];
 
 		ImageSymbol symbol;
+		symbol.modName = procImage.name;
 		symbol.name =  std::string((base+nameRva).as<char>());
 		symbol.index = ordinal;
+		symbol.source = SymbolSource::Export;
 
 		const bool isForwarded = 
 			funcRva >= exportRva && 
@@ -665,6 +667,178 @@ PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, std::vec
 	}
 }
 
+PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, HMODULE hmod, std::vector<ImageSymbol>& symbols)
+{
+	const Address base = Address::fromPtr(hmod);
+
+	const auto dos = base.as<IMAGE_DOS_HEADER>();
+	if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+        return { EPlatformError::MalformedData, 0 };
+
+	const Address ntHeaderAddr = base + dos->e_lfanew;
+
+	const auto nt32 = ntHeaderAddr.as<IMAGE_NT_HEADERS32>();
+    if (nt32->Signature != IMAGE_NT_SIGNATURE)
+        return { EPlatformError::MalformedData, 0 };
+
+	const bool is64Mod = nt32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+
+	DWORD importRva = 0;
+    DWORD importSize = 0;
+
+	if (nt32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+    {
+        const auto& dir =
+            nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+        importRva  = dir.VirtualAddress;
+        importSize = dir.Size;
+    }
+    else if (nt32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+    {
+        const auto nt64 = ntHeaderAddr.as<IMAGE_NT_HEADERS64>();
+
+        const auto& dir =
+            nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+        importRva  = dir.VirtualAddress;
+        importSize = dir.Size;
+    }
+    else
+    {
+        return { EPlatformError::MalformedData, 0 };
+    }
+
+	if (!importRva || !importSize)
+        return { EPlatformError::Success, 0 }; // no imports
+
+	auto importDesc = (base + importRva).as<IMAGE_IMPORT_DESCRIPTOR>();
+
+	for (; importDesc->Name; ++importDesc)
+    {
+        const char* moduleName =
+            (base + importDesc->Name).as<char>();
+
+        Address thunkNameTable =
+            importDesc->OriginalFirstThunk
+                ? base + importDesc->OriginalFirstThunk
+                : base + importDesc->FirstThunk;
+
+        Address thunkIAT =
+            base + importDesc->FirstThunk;
+
+        size_t index = 0;
+
+        while (true)
+        {
+			//Todo: Refactor this
+			if (is64Mod)
+			{
+				const auto thunkName =
+					thunkNameTable.as<IMAGE_THUNK_DATA64>()[index];
+
+				if (!thunkName.u1.AddressOfData)
+					break;
+
+				ImageSymbol symbol;
+				symbol.modName = moduleName;
+				symbol.source = SymbolSource::Import;
+
+				const bool importByOrdinal =
+					(thunkName.u1.Ordinal & IMAGE_ORDINAL_FLAG64) != 0;
+
+				if (importByOrdinal)
+				{
+					const WORD ordinal =
+						IMAGE_ORDINAL(thunkName.u1.Ordinal);
+
+					symbol.name = "#" + std::to_string(ordinal);
+					symbol.index = ordinal;
+				}
+				else
+				{
+					const auto import =
+						(base + thunkName.u1.AddressOfData)
+							.as<IMAGE_IMPORT_BY_NAME>();
+
+					symbol.name = std::string(import->Name);
+					symbol.index = import->Hint;
+				}
+
+				// runtime IAT address inside target process (64-bit entries)
+				symbol.address = procImage.baseAddress +
+					(thunkIAT + index * sizeof(IMAGE_THUNK_DATA64) - base);
+
+				symbols.emplace_back(std::move(symbol));
+			}
+			else
+			{
+				const auto thunkName =
+					thunkNameTable.as<IMAGE_THUNK_DATA32>()[index];
+
+				if (!thunkName.u1.AddressOfData)
+					break;
+
+				ImageSymbol symbol;
+				symbol.modName = moduleName;
+				symbol.source = SymbolSource::Import;
+
+				const bool importByOrdinal =
+					(thunkName.u1.Ordinal & IMAGE_ORDINAL_FLAG32) != 0;
+
+				if (importByOrdinal)
+				{
+					const WORD ordinal =
+						IMAGE_ORDINAL(thunkName.u1.Ordinal);
+
+					symbol.name = "#" + std::to_string(ordinal);
+					symbol.index = ordinal;
+				}
+				else
+				{
+					const auto import =
+						(base + thunkName.u1.AddressOfData)
+							.as<IMAGE_IMPORT_BY_NAME>();
+
+					symbol.name = std::string(import->Name);
+					symbol.index = import->Hint;
+				}
+
+				// runtime IAT address inside target process (32-bit entries)
+				symbol.address = procImage.baseAddress +
+					(thunkIAT + index * sizeof(IMAGE_THUNK_DATA32) - base);
+
+				symbols.emplace_back(std::move(symbol));
+			}
+
+			++index;
+        }
+	}
+	return { EPlatformError::Success, 0 };
+}
+
+PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols)
+{
+	//Todo: This could be combined with export retrieval
+	//Todo: should be named isValid()?
+	if (!procImage.valid() || procImage.path.empty())
+	{
+		return { EPlatformError::InvalidArgument, 0 };
+	}
+
+	HMODULE hmod = GetModuleHandleA(procImage.path.c_str());
+	if (hmod)
+	{
+		return retrieveImportSymbols(procImage, hmod, symbols);
+	}
+	else
+	{
+		ScopedModule ownedModule(LoadLibraryExA(procImage.path.c_str(), nullptr, DONT_RESOLVE_DLL_REFERENCES));
+		if (!ownedModule.get())
+			return { EPlatformError::InternalError, GetLastError() };
+		return retrieveImportSymbols(procImage, ownedModule.get(), symbols);
+	}
+}
 
 
 }
