@@ -119,6 +119,13 @@ inline std::string to_string(const ProcessImage& img)
     return oss.str();
 }
 
+enum class SymbolSource
+{
+    Export,
+    Import,
+    Internal // symbols from Analysis
+};
+
 class ImageSymbol
 {
 public:
@@ -129,7 +136,9 @@ public:
 	Address address;
 	uint32_t index;
 	std::string name;
+     std::string modName;
      std::string forwarder;
+     SymbolSource source;
 
 	bool valid() const noexcept { return address; }
 };
