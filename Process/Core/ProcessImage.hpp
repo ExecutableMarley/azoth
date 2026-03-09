@@ -76,6 +76,8 @@ public:
      */
 	explicit operator bool() const { return valid(); }
 
+
+
 	/**
      * @brief Convert the image to its corresponding memory range.
 	 * 
@@ -84,6 +86,18 @@ public:
      */
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + size); };
 };
+
+/**
+ * @brief Equality comparison for ProcessImage.
+ * 
+ * Returns true if both objects describe the same loaded binary.
+ */
+inline bool operator==(const ProcessImage& a, const ProcessImage& b)
+{
+     if (a.baseAddress != b.baseAddress || a.size != b.size)
+          return false;
+     return a.name == b.name && a.path == b.path;
+}
 
 inline std::ostream& operator<<(std::ostream& os, const ProcessImage& img)
 {
