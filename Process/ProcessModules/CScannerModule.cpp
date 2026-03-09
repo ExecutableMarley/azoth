@@ -710,7 +710,7 @@ std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& mod
     {
         //Get the import symbol, then scan for cross refs to that symbol
         ImageSymbol importSymbol;
-        if (_backPtr->getSymbols().getSymbolByName(module.name, symbol.name, &importSymbol))
+        if (_backPtr->getSymbols().getSymbolByName(module.name, symbol.name, importSymbol))
         {
             if (((MemoryRange)module).contains(importSymbol.address))
             {

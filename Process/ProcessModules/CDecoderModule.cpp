@@ -109,8 +109,18 @@ ZyanStatus PrintAbsAddressHook(
         ImageSymbol symbol;
         if (decoder->resolveSymbol(address, symbol))
         {
-            // Use the resolved symbol
-            std::string text = symbol.modName + "!" + symbol.name;
+            std::string text;
+
+            // Import Address Table entry (not direct function address)
+            if (symbol.source == SymbolSource::Import)
+            {
+                text = "<&" + symbol.modName + "!" + symbol.name + ">";
+            }
+            // Normal symbol
+            else
+            {
+                text = symbol.modName + "!" + symbol.name;
+            }
             return ZydisStringAppendStringView(str, text);
         }
         else if (decoder->resolveModule(address, image, offset))
@@ -211,7 +221,7 @@ std::string CDecoderModule::formatInstruction(const CompactInstruction& instr) c
 
 bool CDecoderModule::resolveSymbol(uint64_t runtimeAddress, ImageSymbol& outSymbol)
 {
-	return _backPtr->getSymbols().getSymbolByAddress(runtimeAddress, true, &outSymbol);
+	return _backPtr->getSymbols().getSymbolByAddress(runtimeAddress, true, outSymbol);
 }
 
 bool CDecoderModule::resolveModule(uint64_t runtimeAddress, ProcessImage& outImage, uint64_t& outOffset)

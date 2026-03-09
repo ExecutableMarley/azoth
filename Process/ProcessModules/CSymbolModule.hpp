@@ -24,11 +24,10 @@ class ModuleSymbolEntry
 public:
     ProcessImage image;
     std::vector<ImageSymbol> symbols;
-    //Import symbols?
 
     bool isParsed = false;
 
-    bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol* outSymbol)
+    bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
     {
         if (!isParsed) return false;
 
@@ -46,21 +45,21 @@ public:
         {
             if (it->address == runtimeAddress)
             {
-                *outSymbol = *it;
+                outSymbol = *it;
                 return true;
             }
             return false;
         }
         else if (runtimeAddress >= it->address && runtimeAddress < it->address + symbolSize)
         {
-            *outSymbol = *it;
+            outSymbol = *it;
             return true;
         }
 
         return false;
     }
 
-    bool getSymbolByName(const std::string& name, ImageSymbol* outSymbol)
+    bool getSymbolByName(const std::string& name, ImageSymbol& outSymbol)
     {
         //Todo: O(n)
         if (!isParsed) return false;
@@ -71,7 +70,7 @@ public:
 
         if (it == symbols.end()) return false;
 
-        *outSymbol = *it;
+        outSymbol = *it;
         return true;
     }
 };
@@ -104,29 +103,60 @@ public:
 
 public:
     
-    void retrieveModuleList()
+    bool refreshModuleCache()
     {
-        _processImageCache.clear();
-
-        //Get all modules, store in _processImageCache with empty symbols
-        //auto images = _process->getAllProcessImages();
-
         std::vector<ProcessImage> images;
-        auto result = _platformLink->getAllProcessImages(images);
-        if (!result)
+        if (!_platformLink->getAllProcessImages(images)) { return false; }
+
+        std::sort(images.begin(), images.end(),
+            [](const ProcessImage& a, const ProcessImage& b) { return a.baseAddress < b.baseAddress; });
+
+        size_t i = 0; // new images
+        size_t j = 0; // cache
+
+        while (i < images.size() && j < _processImageCache.size())
         {
-            //Handle error
-            return;
+            const auto& newImg = images[i];
+            const auto& cachedImg = _processImageCache[j].image;
+
+            if (newImg == cachedImg)
+            {
+                // Same module
+                ++i;
+                ++j;
+            }
+            else if (newImg.baseAddress < cachedImg.baseAddress)
+            {
+                // New module appeared
+                _processImageCache.insert(_processImageCache.begin() + j,
+                    ModuleSymbolEntry{ newImg, {}, false });
+
+                ++i;
+                ++j;
+            }
+            else
+            {
+                // Cached module disappeared
+                _processImageCache.erase(_processImageCache.begin() + j);
+            }
         }
 
-        std::sort(images.begin(), images.end(), [](const ProcessImage& a, const ProcessImage& b) {
-            return a.baseAddress < b.baseAddress;
-        });
-
-        for (const auto& img : images)
+        if (i < images.size())
         {
-            _processImageCache.push_back(ModuleSymbolEntry{ img, {}, false });
+            while (i < images.size())
+            {
+                _processImageCache.push_back(ModuleSymbolEntry{ images[i], {}, false });
+                ++i;
+            }
         }
+        else
+        {
+            while (j < _processImageCache.size())
+            {
+                _processImageCache.erase(_processImageCache.begin() + j);
+            }
+        }
+        return true;
     }
 
 
@@ -196,7 +226,7 @@ public:
         return nullptr;
     }
 
-    bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol* outSymbol)
+    bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
     {
         ModuleEntryHandle handle = getModuleHandle(runtimeAddress);
         if (!handle.valid())
@@ -205,7 +235,7 @@ public:
         return getSymbolByAddress(handle, runtimeAddress, exactMatch, outSymbol);
     }
 
-    bool getSymbolByAddress(const ModuleEntryHandle& handle, Address runtimeAddress, bool exactMatch, ImageSymbol* outSymbol)
+    bool getSymbolByAddress(const ModuleEntryHandle& handle, Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
     {
         ModuleSymbolEntry* entry = getModuleFromHandle(handle);
         if (!entry)
@@ -230,7 +260,7 @@ public:
         }
     }
 
-    bool getSymbolByName(const ModuleEntryHandle& handle, const std::string& moduleName, ImageSymbol* outSymbol)
+    bool getSymbolByName(const ModuleEntryHandle& handle, const std::string& moduleName, ImageSymbol& outSymbol)
     {
         ModuleSymbolEntry* entry = getModuleFromHandle(handle);
         if (!entry)
@@ -255,14 +285,14 @@ public:
         }
     }
 
-    bool getSymbolByName(const std::string moduleName, const std::string& symbolName, ImageSymbol* outSymbol)
+    bool getSymbolByName(const std::string moduleName, const std::string& symbolName, ImageSymbol& outSymbol)
     {
         ModuleEntryHandle handle = getModuleHandle(moduleName);
 
         return getSymbolByName(handle, symbolName, outSymbol);
     }
 
-    bool getSymbolByName(const std::string combinedName, ImageSymbol* outSymbol)
+    bool getSymbolByName(const std::string combinedName, ImageSymbol& outSymbol)
     {
         size_t pos = combinedName.find('!');
 
