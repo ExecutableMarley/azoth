@@ -117,17 +117,17 @@ protected:
 	/**
 	 * @brief Sets the last error state and returns a bool indicating platformError == Success
 	 */
-	bool setError(EPlatformError platformError, uint64_t osError = 0) const
+	static bool setError(EPlatformError platformError, uint64_t detail = 0)
 	{
 		_lastError.platformError = platformError;
-		_lastError.osError       = osError;
+		_lastError.osError       = detail;
 		return platformError == EPlatformError::Success;
 	}
 
 	/**
 	 * @brief Sets the last error state and returns a bool indicating platformError == Success
 	 */
-	bool setError(PlatformErrorState state) const
+	static bool setError(PlatformErrorState state)
 	{
 		_lastError = state;
 		return state.platformError == EPlatformError::Success;
