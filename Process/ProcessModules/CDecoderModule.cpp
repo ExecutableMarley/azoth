@@ -15,12 +15,12 @@ namespace Azoth
 
 InstructionIterator& InstructionIterator::operator++()
 {
-    if (!_decoder || !_decoder->decodeNext(_buffer, _size, _addr, _current))
+    if (!_decoder || !_decoder->decodeNext(_cursor, _current))
     {
         _decoder = nullptr; // mark end
-        _buffer  = nullptr;
-        _size    = 0;
-        _addr    = 0;
+        _cursor.buffer        = nullptr;
+        _cursor.remainingSize = 0;
+        _cursor.runtimeAddr   = 0;
     }
     return *this;
 }
@@ -33,8 +33,53 @@ bool InstructionIterator::operator==(const InstructionIterator& other) const
     	return _decoder == other._decoder;
 	}
 	// Actual iterator check
-	return (_decoder == other._decoder) && (_buffer  == other._buffer) && 
-    	(_addr == other._addr) && (_size == other._size);
+	return (_decoder == other._decoder) && (_cursor.buffer  == other._cursor.buffer) && 
+    	(_cursor.runtimeAddr == other._cursor.runtimeAddr) && (_cursor.remainingSize == other._cursor.remainingSize);
+}
+
+
+ZYAN_INLINE ZyanStatus ZydisStringAppendShortString(ZyanString* destination, const ZydisShortString* source)
+{
+    ZYAN_ASSERT(destination && source);
+    ZYAN_ASSERT(!destination->vector.allocator);
+    ZYAN_ASSERT(destination->vector.size && source->size);
+
+    if (destination->vector.size + source->size > destination->vector.capacity)
+    {
+        return ZYAN_STATUS_INSUFFICIENT_BUFFER_SIZE;
+    }
+
+    memcpy((char*)destination->vector.data + destination->vector.size - 1, source->data,
+        (ZyanUSize)source->size + 1);
+
+    destination->vector.size += source->size;
+    //ZYDIS_STRING_ASSERT_NULLTERMINATION(destination);
+
+    return ZYAN_STATUS_SUCCESS;
+}
+
+ZYAN_INLINE ZyanStatus ZydisStringAppendStringView(ZyanString* destination, std::string_view source)
+{
+    ZYAN_ASSERT(destination);
+    ZYAN_ASSERT(!destination->vector.allocator);
+    ZYAN_ASSERT(destination->vector.size);
+
+    if (!source.size())
+        return ZYAN_STATUS_SUCCESS;
+
+    if (destination->vector.size + source.size() > destination->vector.capacity)
+    {
+        return ZYAN_STATUS_INSUFFICIENT_BUFFER_SIZE;
+    }
+
+    memcpy((char*)destination->vector.data + destination->vector.size - 1, source.data(), source.size());
+
+    // copy terminating null
+    ((char*)destination->vector.data)[destination->vector.size - 1 + source.size()] = '\0';
+
+    destination->vector.size += source.size();
+
+    return ZYAN_STATUS_SUCCESS;
 }
 
 
@@ -55,7 +100,24 @@ ZyanStatus PrintAbsAddressHook(
     {
         auto decoder = (CDecoderModule*)context->user_data;
 
-        
+        ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
+        ZyanString* str;
+        ZYAN_CHECK(ZydisFormatterBufferGetString(buffer, &str));
+
+        ProcessImage image;
+        uint64_t offset;
+        ImageSymbol symbol;
+        if (decoder->resolveSymbol(address, symbol))
+        {
+            // Use the resolved symbol
+            std::string text = symbol.modName + "!" + symbol.name;
+            return ZydisStringAppendStringView(str, text);
+        }
+        else if (decoder->resolveModule(address, image, offset))
+        {
+            std::string text = image.name + "+" + std::to_string(offset);
+            return ZydisStringAppendStringView(str, text);
+        }
     }
 
     //ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL)
@@ -131,9 +193,9 @@ std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactI
 	{
 		return os << "<invalid instruction>";
 	}
-	char szBuffer[64];
+	char szBuffer[128];
 	if (!ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instruction, operands, instruction.operand_count, 
-		szBuffer, sizeof(szBuffer), instr.address, ZYAN_NULL)))
+		szBuffer, sizeof(szBuffer), instr.address, (void*)this )))
     {
 		return os << "<invalid instruction>";
 	}
@@ -147,6 +209,19 @@ std::string CDecoderModule::formatInstruction(const CompactInstruction& instr) c
 	return oss.str();
 }
 
+bool CDecoderModule::resolveSymbol(uint64_t runtimeAddress, ImageSymbol& outSymbol)
+{
+	return _backPtr->getSymbols().getSymbolByAddress(runtimeAddress, true, &outSymbol);
+}
 
+bool CDecoderModule::resolveModule(uint64_t runtimeAddress, ProcessImage& outImage, uint64_t& outOffset)
+{
+    if (_backPtr->getSymbols().getModuleFromAddress(runtimeAddress, outImage))
+    {
+        outOffset = runtimeAddress - outImage.baseAddress;
+        return true;
+    }
+    return false;
+}
 
 }

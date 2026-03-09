@@ -602,15 +602,23 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module
         if (!_memory->read(region.baseAddress, region.regionSize, buffer.get()))
             continue;
 
-        const BYTE* curByte = buffer.get();
-        size_t remainingSize = region.regionSize;
-        uint64_t runtimeAddress = region.baseAddress;
-        //CompactInstruction instr;
-        ZydisDecodedInstruction instr;
+        DecoderCursor cursor{ buffer.get(), region.regionSize, region.baseAddress };
+        Instruction decodedInstr;
         InstructionOperands operands;
 
-        while (decoder.decodeNext(curByte, remainingSize, runtimeAddress, instr))
+        while (cursor.remainingSize > 0)
         {
+            if (!decoder.decodeNext(cursor, decodedInstr))
+            {
+                // Skip 1 byte and try again
+                cursor.buffer += 1;
+                cursor.remainingSize -= 1;
+                cursor.runtimeAddr += 1;
+                continue;
+            }
+
+            ZydisDecodedInstruction& instr = decodedInstr.instr;
+
             bool hasPotentialAddress = (instr.raw.disp.size != 0) || 
                                (instr.raw.imm[0].size != 0) || 
                                (instr.raw.imm[1].size != 0);
@@ -622,15 +630,15 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module
                 continue;
             }
 
-            if (decoder.decodeOperands(instr, operands))
+            if (decoder.decodeOperands(instr, decodedInstr.context, operands))
             {
                 for (size_t i = 0; i < operands.count; i++)
                 {
                     if (operands[i].type == ZYDIS_OPERAND_TYPE_MEMORY || operands[i].type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
                     {
-                        Address addr = decoder.decodeAbsoluteMemoryAddress(instr, operands[i], runtimeAddress);
+                        Address addr = decoder.decodeAbsoluteMemoryAddress(instr, operands[i], decodedInstr.runtimeAddr);
                         if (addr == absoluteTargetAddress)
-                            crossRefs.push_back(runtimeAddress);
+                            crossRefs.push_back(decodedInstr.runtimeAddr);
                     }
                 }
             }
@@ -642,25 +650,30 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module
 
 std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy, Address relativeTargetAddress)
 {
-    //Todo: This method is problematic since it won't work as expected on copies from a module
-    //We should consider to store vmemory mapping info inside memCopy
+    //Todo: We should consider to store vmemory mapping info inside memCopy
 
     if (!memCopy.valid() || relativeTargetAddress >= memCopy.getSize())
         return {};
-
-    const BYTE* curByte = memCopy.getBuffer();
-    size_t remainingSize = memCopy.getSize();
-    uint64_t runtimeAddress = memCopy.getBaseAddress();
-    //CompactInstruction instr;
-    ZydisDecodedInstruction instr;
-    InstructionOperands operands;
 
     std::vector<Address> crossRefs;
     auto& decoder = this->_backPtr->getDecoder();
     const Address absoluteTargetAddress = memCopy.getBaseAddress() + relativeTargetAddress;
 
-    while (decoder.decodeNext(curByte, remainingSize, runtimeAddress, instr))
+    DecoderCursor cursor{ memCopy.getBuffer(), memCopy.getSize(), memCopy.getBaseAddress() };
+    Instruction decodedInstr;
+    InstructionOperands operands;
+
+    while (cursor.remainingSize > 0)
     {
+        if (!decoder.decodeNext(cursor, decodedInstr))
+        {
+            // Skip 1 byte and try again
+            cursor.buffer += 1;
+            cursor.remainingSize -= 1;
+            cursor.runtimeAddr += 1;
+            continue;
+        }
+        ZydisDecodedInstruction& instr = decodedInstr.instr;
         bool hasPotentialAddress = (instr.raw.disp.size != 0) || 
                            (instr.raw.imm[0].size != 0) || 
                            (instr.raw.imm[1].size != 0);
@@ -670,15 +683,15 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy,
         {
             continue;
         }
-        if (decoder.decodeOperands(instr, operands))
+        if (decoder.decodeOperands(instr, decodedInstr.context, operands))
         {
             for (size_t i = 0; i < operands.count; i++)
             {
                 if (operands[i].type == ZYDIS_OPERAND_TYPE_MEMORY || operands[i].type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
                 {
-                    Address addr = decoder.decodeAbsoluteMemoryAddress(instr, operands[i], runtimeAddress);
+                    Address addr = decoder.decodeAbsoluteMemoryAddress(instr, operands[i], decodedInstr.runtimeAddr);
                     if (addr == absoluteTargetAddress)
-                        crossRefs.push_back(runtimeAddress);
+                        crossRefs.push_back(decodedInstr.runtimeAddr);
                 }
             }
         }
@@ -686,5 +699,28 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy,
     
     return crossRefs;
 }
+
+std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& module, const ImageSymbol& symbol)
+{
+    if (module.name == symbol.name && symbol.source == SymbolSource::Export)
+    {
+        return findAllCrossRefs(module, symbol.address - module.baseAddress);
+    }
+    else
+    {
+        //Get the import symbol, then scan for cross refs to that symbol
+        ImageSymbol importSymbol;
+        if (_backPtr->getSymbols().getSymbolByName(module.name, symbol.name, &importSymbol))
+        {
+            if (((MemoryRange)module).contains(importSymbol.address))
+            {
+                return findAllCrossRefs(module, importSymbol.address - module.baseAddress);
+            }
+        }
+        //setError(EProcessError::SymbolNotFound);
+        return {};
+    }
+}
+
 
 }

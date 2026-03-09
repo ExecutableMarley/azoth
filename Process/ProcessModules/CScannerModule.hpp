@@ -254,6 +254,7 @@ public:
 
 	std::vector<Address> findAllCrossRefs(const MemoryCopy& memCopy, Address relativeTargetAddress);
 
+	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, const ImageSymbol& symbol);
 
 private:
 	CProcess* _backPtr;

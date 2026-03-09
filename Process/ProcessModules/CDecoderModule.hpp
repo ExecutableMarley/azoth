@@ -8,6 +8,7 @@
 #include "../ThirdParty/Zydis/Zydis.h"
 #include "../Types/Address.hpp"
 #include "../Types/EProcessArchitecture.hpp"
+#include "../Core/ProcessImage.hpp"
 
 #include <string>
 #include <cstring>
@@ -132,6 +133,25 @@ struct CompactInstruction
     }
 };
 
+//FullInstruction
+class Instruction
+{
+public:
+	Address runtimeAddr = 0;
+	ZydisDecodedInstruction instr{};
+	ZydisDecoderContext context{};
+
+	uint8_t length() const { return instr.length; }
+};
+
+class DecoderCursor
+{
+public:
+	const uint8_t* buffer;
+	size_t remainingSize;
+	uint64_t runtimeAddr;
+};
+
 class InstructionOperands
 {
 public:
@@ -161,7 +181,7 @@ public:
     InstructionIterator() = default;
 
     InstructionIterator(CDecoderModule* decoder, const uint8_t* buffer, size_t size, uint64_t addr)
-        : _decoder(decoder), _buffer(buffer), _size(size), _addr(addr)
+        : _decoder(decoder), _cursor{ buffer, size, addr }
     {
         ++(*this); // decode first
     }
@@ -181,9 +201,7 @@ public:
 
 private:
     CDecoderModule* _decoder = nullptr;
-    const uint8_t*  _buffer  = nullptr;
-    size_t          _size    = 0;
-    uint64_t        _addr    = 0;
+    DecoderCursor   _cursor{};
     CompactInstruction _current{};
 };
 
@@ -250,42 +268,45 @@ public:
 		return true;
 	}
 
-	bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, ZydisDecodedInstruction& out)
+	
+	bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, Instruction& out)
 	{
-		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &out)))
-		{
-			return false;
-		}
+		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out.context, buffer, size, &out.instr)))
+    	{
+        	return false;
+    	}
+		out.runtimeAddr = runtimeAddr;
 		return true;
 	}
 
-	bool decodeNext(const uint8_t*& buffer, size_t& size, uint64_t& runtimeAddr, CompactInstruction& out)
+	bool decodeNext(DecoderCursor& cursor, CompactInstruction& out)
 	{
 		ZydisDecodedInstruction instr{};
-    	if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &instr)))
+    	if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, cursor.buffer, cursor.remainingSize, &instr)))
     	{
         	return false;
     	}
 
-    	out.fromZydis(instr, buffer, runtimeAddr);
+    	out.fromZydis(instr, cursor.buffer, cursor.runtimeAddr);
 
     	// Advance state
-    	buffer      += instr.length;
-    	size        -= instr.length;
-    	runtimeAddr += instr.length;
+    	cursor.buffer      += instr.length;
+    	cursor.remainingSize        -= instr.length;
+    	cursor.runtimeAddr += instr.length;
     	return true;
 	}
 
-	bool decodeNext(const uint8_t*& buffer, size_t& size, uint64_t& runtimeAddr, ZydisDecodedInstruction& out)
+	bool decodeNext(DecoderCursor& cursor, Instruction& out)
 	{
-    	if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &out)))
+		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out.context, cursor.buffer, cursor.remainingSize, &out.instr)))
     	{
         	return false;
     	}
+		out.runtimeAddr = cursor.runtimeAddr;
 		// Advance state
-    	buffer      += out.length;
-    	size        -= out.length;
-    	runtimeAddr += out.length;
+    	cursor.buffer        += out.instr.length;
+    	cursor.remainingSize -= out.instr.length;
+    	cursor.runtimeAddr   += out.instr.length;
     	return true;
 	}
 
@@ -305,9 +326,9 @@ public:
 		return true;
 	}
 
-	bool decodeOperands(const ZydisDecodedInstruction& instr, InstructionOperands& out)
+	bool decodeOperands(const ZydisDecodedInstruction& instr, const ZydisDecoderContext& context, InstructionOperands& out)
 	{
-		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, nullptr, &instr, out.operands, InstructionOperands::MaxOperands)))
+		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &context, &instr, out.operands, InstructionOperands::MaxOperands)))
 			return false;
 		
 		out.count = instr.operand_count;
@@ -364,6 +385,15 @@ public:
 		return absAddr;
 	}
 
+	uint64_t decodeAbsoluteMemoryAddress(const Instruction& instr, const ZydisDecodedOperand& operand)
+	{
+		uint64_t absAddr = 0;
+		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&instr.instr, &operand, instr.runtimeAddr, &absAddr)))
+			return 0;
+
+		return absAddr;
+	}
+
 	uint64_t decodeAbsoluteMemoryAddress(const ZydisDecodedInstruction& instr, const ZydisDecodedOperand& operand, Address runtimeAddress)
 	{
 		uint64_t absAddr = 0;
@@ -381,6 +411,10 @@ public:
 	FormatterProxy wrap(const CompactInstruction& ci) const {
         return { *this, ci };
     }
+
+	bool resolveSymbol(uint64_t runtimeAddress, ImageSymbol& outSymbol);
+
+	bool resolveModule(uint64_t runtimeAddress, ProcessImage& outImage, uint64_t& outOffset);
 
 private:
 	CProcess*      _backPtr; 
