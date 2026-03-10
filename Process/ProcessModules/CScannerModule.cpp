@@ -6,7 +6,6 @@
 #include "CScannerModule.hpp"
 
 #include "../CProcess.hpp"
-
 #include "../Utility/MemIn.hpp"
 
 #include <cstring>
@@ -19,6 +18,11 @@ CScannerModule::CScannerModule(CProcess* backPtr) : _backPtr(backPtr)
 {
 	this->_memory = &backPtr->getMemory();
 }
+
+/*
+Todo: Proper error management for these methods.
+Consider implementing EProcessCapability enum  
+*/
 
 Address CScannerModule::findPatternEx(const MemoryRange& memRange, const Pattern& pattern, const MemoryRegionFilter& filter)
 {
@@ -702,7 +706,7 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy,
 
 std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& module, const ImageSymbol& symbol)
 {
-    if (module.name == symbol.name && symbol.source == SymbolSource::Export)
+    if (symbol.source == SymbolSource::Export && module.name == symbol.name)
     {
         return findAllCrossRefs(module, symbol.address - module.baseAddress);
     }
@@ -712,12 +716,11 @@ std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& mod
         ImageSymbol importSymbol;
         if (_backPtr->getSymbols().getSymbolByName(module.name, symbol.name, importSymbol))
         {
-            if (((MemoryRange)module).contains(importSymbol.address))
-            {
-                return findAllCrossRefs(module, importSymbol.address - module.baseAddress);
-            }
+            assert( ((MemoryRange)module).contains(importSymbol.address) );
+            return findAllCrossRefs(module, importSymbol.address - module.baseAddress);
         }
-        //setError(EProcessError::SymbolNotFound);
+        else
+            IPlatformLink::setError(EPlatformError::SymbolNotFound);
         return {};
     }
 }
