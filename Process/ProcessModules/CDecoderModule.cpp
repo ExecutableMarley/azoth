@@ -37,23 +37,23 @@ bool InstructionIterator::operator==(const InstructionIterator& other) const
     	(_cursor.runtimeAddr == other._cursor.runtimeAddr) && (_cursor.remainingSize == other._cursor.remainingSize);
 }
 
-
-ZYAN_INLINE ZyanStatus ZydisStringAppendShortString(ZyanString* destination, const ZydisShortString* source)
+ZYAN_INLINE ZyanStatus ZydisStringAppendChar(ZyanString* destination, char c)
 {
-    ZYAN_ASSERT(destination && source);
+    ZYAN_ASSERT(destination);
     ZYAN_ASSERT(!destination->vector.allocator);
-    ZYAN_ASSERT(destination->vector.size && source->size);
+    ZYAN_ASSERT(destination->vector.size);
 
-    if (destination->vector.size + source->size > destination->vector.capacity)
+    if (destination->vector.size + 1 > destination->vector.capacity)
     {
         return ZYAN_STATUS_INSUFFICIENT_BUFFER_SIZE;
     }
 
-    memcpy((char*)destination->vector.data + destination->vector.size - 1, source->data,
-        (ZyanUSize)source->size + 1);
+    char* data = (char*)destination->vector.data;
 
-    destination->vector.size += source->size;
-    //ZYDIS_STRING_ASSERT_NULLTERMINATION(destination);
+    data[destination->vector.size - 1] = c;
+    data[destination->vector.size] = '\0';
+
+    destination->vector.size += 1;
 
     return ZYAN_STATUS_SUCCESS;
 }
@@ -80,6 +80,31 @@ ZYAN_INLINE ZyanStatus ZydisStringAppendStringView(ZyanString* destination, std:
     destination->vector.size += source.size();
 
     return ZYAN_STATUS_SUCCESS;
+}
+
+
+ZYAN_INLINE ZyanStatus ZydisStringAppendHex(ZyanString* destination, uint64_t value, bool prefix0x)
+{
+    static const char HEX_LOOKUP[] = "0123456789ABCDEF";
+
+    char buffer[18]; // 16 + '0x'
+    int pos = 18;
+
+    // 1. Generate backwards
+    do
+    {
+        buffer[--pos] = HEX_LOOKUP[value & 0xF];
+        value >>= 4;
+    } while (value);
+
+    if (prefix0x)
+    {
+        buffer[--pos] = 'x';
+        buffer[--pos] = '0';
+    }
+
+    return ZydisStringAppendStringView(destination, 
+        std::string_view(buffer + pos, 18 - pos));
 }
 
 
@@ -221,12 +246,12 @@ std::string CDecoderModule::formatInstruction(const CompactInstruction& instr) c
 
 bool CDecoderModule::resolveSymbol(uint64_t runtimeAddress, ImageSymbol& outSymbol)
 {
-	return _backPtr->getSymbols().getSymbolByAddress(runtimeAddress, true, outSymbol);
+	return _backPtr->getSymbols().findSymbolByAddress(runtimeAddress, true, outSymbol);
 }
 
 bool CDecoderModule::resolveModule(uint64_t runtimeAddress, ProcessImage& outImage, uint64_t& outOffset)
 {
-    if (_backPtr->getSymbols().getModuleFromAddress(runtimeAddress, outImage))
+    if (_backPtr->getSymbols().findModuleByAddress(runtimeAddress, outImage))
     {
         outOffset = runtimeAddress - outImage.baseAddress;
         return true;

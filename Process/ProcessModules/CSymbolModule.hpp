@@ -19,62 +19,6 @@ namespace Azoth
 
 class CProcess;
 
-class ModuleSymbolEntry
-{
-public:
-    ProcessImage image;
-    std::vector<ImageSymbol> symbols;
-
-    bool isParsed = false;
-
-    bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
-    {
-        if (!isParsed) return false;
-
-        auto it = std::upper_bound(symbols.begin(), symbols.end(), runtimeAddress, [](const Address& addr, const ImageSymbol& sym) {
-            return addr < sym.address;
-        });
-
-        if (it == symbols.begin()) return false;
-
-        --it; // Step back to the symbol that is <= runtimeAddress
-
-        size_t symbolSize = std::next(it) != symbols.end() ? std::next(it)->address - it->address : 1; // Assume size 1 for the last symbol
-
-        if (exactMatch)
-        {
-            if (it->address == runtimeAddress)
-            {
-                outSymbol = *it;
-                return true;
-            }
-            return false;
-        }
-        else if (runtimeAddress >= it->address && runtimeAddress < it->address + symbolSize)
-        {
-            outSymbol = *it;
-            return true;
-        }
-
-        return false;
-    }
-
-    bool getSymbolByName(const std::string& name, ImageSymbol& outSymbol)
-    {
-        //Todo: O(n)
-        if (!isParsed) return false;
-
-        auto it = std::find_if(symbols.begin(), symbols.end(), [&name](const ImageSymbol& sym) {
-            return sym.name == name;
-        });
-
-        if (it == symbols.end()) return false;
-
-        outSymbol = *it;
-        return true;
-    }
-};
-
 
 // Lightweight handle referencing a module in the process image cache.
 // Contains the index into the cache and the base address for quick validation.
@@ -103,6 +47,8 @@ public:
 
 public:
     
+    // Module Cache
+
     bool refreshModuleCache()
     {
         std::vector<ProcessImage> images;
@@ -159,8 +105,24 @@ public:
         return true;
     }
 
+    size_t getModuleCount() const
+    {
+        return _processImageCache.size();
+    }
 
-    bool getModuleFromAddress(Address runtimeAddress, ProcessImage& outImage)
+    // Module Lookup
+
+    bool getModule(size_t index, ProcessImage& outImage)
+    {
+        if (index < _processImageCache.size())
+        {
+            outImage = _processImageCache[index].image;
+            return true;
+        }
+        return false;
+    }
+
+    bool findModuleByAddress(Address runtimeAddress, ProcessImage& outImage)
     {
         //Binary search for the module containing runtimeAddress
         auto it = std::upper_bound(_processImageCache.begin(), _processImageCache.end(), runtimeAddress, [](const Address& addr, const ModuleSymbolEntry& entry) {
@@ -180,6 +142,20 @@ public:
 
         return false;
     }
+
+    bool findModuleByName(std::string_view moduleName, ProcessImage& outImage)
+    {
+        auto it = std::find_if(_processImageCache.begin(), _processImageCache.end(), [&moduleName](const ModuleSymbolEntry& mod) {
+            return mod.image.name == moduleName;
+        });
+
+        if (it == _processImageCache.end()) return false;
+
+        outImage = it->image;
+        return true;
+    }
+
+    // Handles
 
     // Return a lightweight handle for the module that would contain runtimeAddress.
     // The handle can be passed between interfaces to avoid repeating the binary search.
@@ -214,6 +190,64 @@ public:
         return ModuleEntryHandle(idx, it->image.baseAddress);
     }
     
+private:
+
+    class ModuleSymbolEntry
+    {
+    public:
+        ProcessImage image;
+        std::vector<ImageSymbol> symbols;
+        
+        bool isParsed = false;
+        
+        bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
+        {
+            if (!isParsed) return false;
+        
+            auto it = std::upper_bound(symbols.begin(), symbols.end(), runtimeAddress, [](const Address& addr, const ImageSymbol& sym) {
+                return addr < sym.address;
+            });
+        
+            if (it == symbols.begin()) return false;
+        
+            --it; // Step back to the symbol that is <= runtimeAddress
+        
+            size_t symbolSize = std::next(it) != symbols.end() ? std::next(it)->address - it->address : 1; // Assume size 1 for the last symbol
+        
+            if (exactMatch)
+            {
+                if (it->address == runtimeAddress)
+                {
+                    outSymbol = *it;
+                    return true;
+                }
+                return false;
+            }
+            else if (runtimeAddress >= it->address && runtimeAddress < it->address + symbolSize)
+            {
+                outSymbol = *it;
+                return true;
+            }
+        
+            return false;
+        }
+    
+        bool getSymbolByName(const std::string& name, ImageSymbol& outSymbol)
+        {
+            //Todo: O(n)
+            if (!isParsed) return false;
+        
+            auto it = std::find_if(symbols.begin(), symbols.end(), [&name](const ImageSymbol& sym) {
+                return sym.name == name;
+            });
+        
+            if (it == symbols.end()) return false;
+        
+            outSymbol = *it;
+            return true;
+        }
+    };
+
     // Validate a handle and return a pointer to the cached ModuleSymbolEntry, or nullptr if invalid.
     ModuleSymbolEntry* getModuleFromHandle(const ModuleEntryHandle& handle)
     {
@@ -223,19 +257,29 @@ public:
         if (handle.index < _processImageCache.size() && _processImageCache[handle.index].image.baseAddress == handle.base)
             return &_processImageCache[handle.index];
 
-        return nullptr;
+        auto it = std::find_if(_processImageCache.begin(), _processImageCache.end(), [&handle](const ModuleSymbolEntry& mod) {
+            return mod.image.baseAddress == handle.base;
+        });
+
+        if (it == _processImageCache.end()) return nullptr;
+
+        return &(*it);
     }
 
-    bool getSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
+public:
+
+    // Symbol lookup
+
+    bool findSymbolByAddress(Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
     {
         ModuleEntryHandle handle = getModuleHandle(runtimeAddress);
         if (!handle.valid())
             return false;
 
-        return getSymbolByAddress(handle, runtimeAddress, exactMatch, outSymbol);
+        return findSymbolByAddress(handle, runtimeAddress, exactMatch, outSymbol);
     }
 
-    bool getSymbolByAddress(const ModuleEntryHandle& handle, Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
+    bool findSymbolByAddress(const ModuleEntryHandle& handle, Address runtimeAddress, bool exactMatch, ImageSymbol& outSymbol)
     {
         ModuleSymbolEntry* entry = getModuleFromHandle(handle);
         if (!entry)
@@ -260,7 +304,7 @@ public:
         }
     }
 
-    bool getSymbolByName(const ModuleEntryHandle& handle, const std::string& moduleName, ImageSymbol& outSymbol)
+    bool findSymbolByName(const ModuleEntryHandle& handle, const std::string& moduleName, ImageSymbol& outSymbol)
     {
         ModuleSymbolEntry* entry = getModuleFromHandle(handle);
         if (!entry)
@@ -285,14 +329,14 @@ public:
         }
     }
 
-    bool getSymbolByName(const std::string moduleName, const std::string& symbolName, ImageSymbol& outSymbol)
+    bool findSymbolByName(const std::string moduleName, const std::string& symbolName, ImageSymbol& outSymbol)
     {
         ModuleEntryHandle handle = getModuleHandle(moduleName);
 
-        return getSymbolByName(handle, symbolName, outSymbol);
+        return findSymbolByName(handle, symbolName, outSymbol);
     }
 
-    bool getSymbolByName(const std::string combinedName, ImageSymbol& outSymbol)
+    bool findSymbol(const std::string combinedName, ImageSymbol& outSymbol)
     {
         size_t pos = combinedName.find('!');
 
@@ -301,7 +345,7 @@ public:
         std::string_view mod = combinedName.substr(0, pos);
         std::string_view sym = combinedName.substr(pos + 1);
 
-        return getSymbolByName(std::string(mod), std::string(sym), outSymbol);
+        return findSymbolByName(std::string(mod), std::string(sym), outSymbol);
     }
 
 private:
