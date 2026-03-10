@@ -137,11 +137,119 @@ struct CompactInstruction
 class Instruction
 {
 public:
+	
+	uint8_t length() const { return instr.length; }
+
+	Address addr() const { return runtimeAddr; }
+	Address end()  const { return runtimeAddr + instr.length; }
+	Address next() const { return end(); }
+	bool contains(Address addr) const { return addr >= runtimeAddr && addr < end(); }
+
+	const ZydisDecodedInstruction& raw() const noexcept
+	{
+    	return instr;
+	}
+
+	bool isNop() const { return instr.mnemonic == ZYDIS_MNEMONIC_NOP; }
+	bool isCall() const { return instr.meta.category == ZYDIS_CATEGORY_CALL; }
+	bool isJump() const
+	{
+        return instr.meta.category == ZYDIS_CATEGORY_COND_BR ||
+               instr.meta.category == ZYDIS_CATEGORY_UNCOND_BR;
+    }
+
+	bool isRet() const { return instr.meta.category == ZYDIS_CATEGORY_RET; }
+	bool isBranch() const { return isCall() || isJump(); }
+	bool isControlFlow() const
+	{
+		return instr.meta.category == ZYDIS_CATEGORY_CALL || 
+           	instr.meta.category == ZYDIS_CATEGORY_COND_BR ||
+           	instr.meta.category == ZYDIS_CATEGORY_UNCOND_BR ||
+           	instr.meta.category == ZYDIS_CATEGORY_RET;
+	}
+	bool isTerminator() const
+	{
+		return isControlFlow() || instr.mnemonic == ZYDIS_MNEMONIC_INT3 || instr.mnemonic == ZYDIS_MNEMONIC_HLT;
+	}
+
+	bool ModifiesStack() const
+	{
+		return instr.meta.category == ZYDIS_CATEGORY_PUSH ||
+        	instr.meta.category == ZYDIS_CATEGORY_POP ||
+           	instr.meta.category == ZYDIS_CATEGORY_CALL ||
+           	instr.meta.category == ZYDIS_CATEGORY_RET;
+	}
+	bool isRelative() const { return (instr.attributes & ZYDIS_ATTRIB_IS_RELATIVE) != 0; }
+
+	bool hasImmediate() const { return instr.raw.imm[0].size != 0 || instr.raw.imm[1].size != 0; }
+
+	bool hasDisplacement() const { return instr.raw.disp.size != 0; }
+
+	bool hasImmediateOrDisplacement() const { return hasImmediate() || hasDisplacement(); }
+
+	//Consider if RIP-relative addressing is covered
+	bool mayReferenceAddress() const { return isRelative() && hasImmediateOrDisplacement(); }
+
+	bool getAbsoluteAddress(const ZydisDecodedOperand& operand, uint64_t& outAddr) const
+	{
+		if (operand.type != ZYDIS_OPERAND_TYPE_MEMORY && operand.type != ZYDIS_OPERAND_TYPE_IMMEDIATE)
+		{
+        	return false;
+    	}
+
+		return ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&instr, &operand, runtimeAddr, &outAddr));
+	}
+
+	Address getAbsoluteAddress(const ZydisDecodedOperand& operand) const
+	{
+		if (operand.type != ZYDIS_OPERAND_TYPE_MEMORY && operand.type != ZYDIS_OPERAND_TYPE_IMMEDIATE)
+		{
+        	return Address::null();
+    	}
+
+		uint64_t outAddr;
+		if (ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&instr, &operand, runtimeAddr, &outAddr)))
+			return outAddr;
+		return Address::null();
+	}
+
+private:
 	Address runtimeAddr = 0;
 	ZydisDecodedInstruction instr{};
 	ZydisDecoderContext context{};
 
-	uint8_t length() const { return instr.length; }
+	friend class CDecoderModule;
+};
+
+class InstructionOperands
+{
+public:
+	static constexpr size_t MaxOperands = 10;
+
+	void reset() { count = 0; }
+
+	size_t size() const { return count; }
+	bool empty() const { return count == 0; }
+
+	auto begin() { return operands; }
+	auto end()   { return operands + count; }
+
+	auto begin() const { return operands; }
+	auto end() const   { return operands + count; }
+
+	ZydisDecodedOperand& operator[](size_t index)
+	{
+		assert(index < count);
+		return operands[index];
+	}
+
+private:
+	size_t count = 0;
+
+	//Consider wrap around helper class
+	ZydisDecodedOperand operands[MaxOperands];
+
+	friend class CDecoderModule;
 };
 
 class DecoderCursor
@@ -150,24 +258,24 @@ public:
 	const uint8_t* buffer;
 	size_t remainingSize;
 	uint64_t runtimeAddr;
-};
 
-class InstructionOperands
-{
-public:
-	static constexpr size_t MaxOperands = 10;
+	Address currentAddress() const { return runtimeAddr; }
+	const uint8_t* end() const { return buffer + remainingSize; }
 
-	//Consider wrap around helper class
-	ZydisDecodedOperand operands[MaxOperands];
+	bool hasMore() const { return remainingSize > 0; }
+	bool empty()   const { return remainingSize == 0; }
+	bool canRead(size_t size) const { return remainingSize >= size; }
 
-	size_t count = 0;
-
-	void reset() { count = 0; }
-
-	ZydisDecodedOperand& operator[](size_t index)
+	void advance(size_t size)
 	{
-		return operands[index];
+		size_t actualStep = std::min(size, remainingSize);
+
+		buffer        += actualStep;
+    	remainingSize -= actualStep;
+    	runtimeAddr   += actualStep;
 	}
+
+	explicit operator bool() const noexcept { return remainingSize > 0; }
 };
 
 class InstructionIterator
@@ -332,6 +440,15 @@ public:
 			return false;
 		
 		out.count = instr.operand_count;
+		return true;
+	}
+
+	bool decodeOperands(const Instruction& instr, InstructionOperands& out)
+	{
+		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr.context, &instr.instr, out.operands, InstructionOperands::MaxOperands)))
+			return false;
+		
+		out.count = instr.instr.operand_count;
 		return true;
 	}
 
