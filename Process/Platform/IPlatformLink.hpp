@@ -114,6 +114,7 @@ protected:
 		return setError(platformError, osError);
 	}
 
+public:
 	/**
 	 * @brief Sets the last error state and returns a bool indicating platformError == Success
 	 */
@@ -152,11 +153,6 @@ public:
  	*       platform link operation returned `false`. On successful calls, the
  	*       error state should be considered to be undefined.
 	*/
-	PlatformErrorState getLastError() const
-	{
-		return _lastError;
-	}
-
 	static PlatformErrorState getLast()
 	{
 		return _lastError;
