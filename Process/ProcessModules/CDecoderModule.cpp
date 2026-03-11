@@ -90,13 +90,14 @@ ZYAN_INLINE ZyanStatus ZydisStringAppendHex(ZyanString* destination, uint64_t va
     char buffer[18]; // 16 + '0x'
     int pos = 18;
 
-    // 1. Generate backwards
+    // Generate backwards
     do
     {
         buffer[--pos] = HEX_LOOKUP[value & 0xF];
         value >>= 4;
     } while (value);
 
+    // Append prefix
     if (prefix0x)
     {
         buffer[--pos] = 'x';
@@ -164,11 +165,28 @@ ZyanStatus PrintAbsAddressHook(
     return default_print_address_absolute(formatter, buffer, context);
 }
 
+InstructionFormatter::InstructionFormatter(Style style)
+{
+    // 1. Set style and init Formatter
+    ZydisFormatterStyle_ zydisStyle = ZYDIS_FORMATTER_STYLE_INTEL;
+    if (style == Style::Intel)
+        zydisStyle = ZYDIS_FORMATTER_STYLE_INTEL;
+    if (style == Style::ATnT)
+        zydisStyle = ZYDIS_FORMATTER_STYLE_ATT;
+    if (style == Style::MASM)
+        zydisStyle = ZYDIS_FORMATTER_STYLE_INTEL_MASM;
+
+    ZydisFormatterInit(&_formatter, zydisStyle);
+
+    // 2. Place Formatter Hook
+    ZydisFormatterFunc absHook = PrintAbsAddressHook;
+    ZydisFormatterSetHook(&_formatter, ZYDIS_FORMATTER_FUNC_PRINT_ADDRESS_ABS, (const void**)&absHook);
+    default_print_address_absolute = absHook;
+}
+
 
 CDecoderModule::CDecoderModule(CProcess* backPtr) : _backPtr(backPtr)
 {
-	EProcessArchitecture architecture = backPtr->GetArchitecture();
-
     if (sizeof(void*) == 4)
     {
         ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_COMPAT_32, ZYDIS_STACK_WIDTH_32);
@@ -216,6 +234,111 @@ void CDecoderModule::setTargetArchitecture(EProcessArchitecture architecture)
     }
 }
 
+bool CDecoderModule::decodeAt(const uint8_t *buffer, size_t size, Address runtimeAddr, CompactInstruction &out)
+{
+    ZydisDecodedInstruction instr{};
+    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &instr)))
+    {
+        return false;
+    }
+
+    out.fromZydis(instr, buffer, runtimeAddr);
+    return true;
+}
+
+bool CDecoderModule::decodeAt(const uint8_t *buffer, size_t size, Address runtimeAddr, Instruction &out)
+{
+    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out.context, buffer, size, &out.instr)))
+    {
+        return false;
+    }
+    out.runtimeAddr = runtimeAddr;
+    return true;
+}
+
+bool CDecoderModule::decodeNext(DecoderCursor &cursor, CompactInstruction &out)
+{
+    ZydisDecodedInstruction instr{};
+    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, cursor.buffer, cursor.remainingSize, &instr)))
+    {
+        return false;
+    }
+    out.fromZydis(instr, cursor.buffer, cursor.runtimeAddr);
+
+    // Advance state
+    cursor.advance(instr.length);
+    return true;
+}
+
+bool CDecoderModule::decodeNext(DecoderCursor &cursor, Instruction &out)
+{
+    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out.context, cursor.buffer, cursor.remainingSize, &out.instr)))
+    {
+        return false;
+    }
+    out.runtimeAddr = cursor.runtimeAddr;
+
+    // Advance state
+    cursor.advance(out.instr.length);
+    return true;
+}
+
+bool CDecoderModule::decodeOperands(const CompactInstruction &instr, InstructionOperands &out)
+{
+    ZydisDecodedInstruction zydisInstruction;
+    if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, instr.raw_bytes, sizeof(instr.raw_bytes), &zydisInstruction, out.operands)))
+        return false;
+
+    out.count = zydisInstruction.operand_count;
+    return true;
+}
+
+bool CDecoderModule::decodeOperands(const Instruction &instr, InstructionOperands &out)
+{
+    if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr.context, &instr.instr, out.operands, InstructionOperands::MaxOperands)))
+        return false;
+
+    out.count = instr.instr.operand_count;
+    return true;
+}
+
+Address CDecoderModule::decodeAbsoluteMemoryAddress(const uint8_t *buffer, size_t bufferSize, Address runtimeAddress, int operandIndex)
+{
+    ZydisDecodedInstruction instr;
+    ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
+
+    if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, buffer, bufferSize, &instr, operands)))
+        return 0;
+
+    // Find operand index
+    int targetIndex = operandIndex;
+    if (targetIndex < 0)
+    {
+        for (uint32_t i = 0; i < instr.operand_count; ++i)
+        {
+            const auto &op = operands[i];
+            if (op.type == ZYDIS_OPERAND_TYPE_MEMORY || op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
+            {
+                targetIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (targetIndex < 0 || targetIndex >= static_cast<int>(instr.operand_count))
+        return 0;
+
+    const auto &op = operands[targetIndex];
+    if (op.type != ZYDIS_OPERAND_TYPE_MEMORY || op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
+        return 0;
+
+    uint64_t absAddr = 0;
+    if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&instr, &op, runtimeAddress, &absAddr)))
+        return 0;
+
+    return absAddr;
+}
+
 std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactInstruction& instr) const
 {
 	if (!instr.isValid())
@@ -237,6 +360,26 @@ std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactI
 	return os << szBuffer;
 }
 
+std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const Instruction& instr) const
+{
+	if (!instr.isValid())
+	{
+		return os << "<invalid instruction>";
+	}
+    ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
+	if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr.context, &instr.instr, operands, ZYDIS_MAX_OPERAND_COUNT)))
+	{
+		return os << "<invalid instruction>";
+	}
+	char szBuffer[128];
+	if (!ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instr.instr, operands, ZYDIS_MAX_OPERAND_COUNT, 
+		szBuffer, sizeof(szBuffer), instr.runtimeAddr, (void*)this )))
+    {
+		return os << "<invalid instruction>";
+	}
+	return os << szBuffer;
+}
+
 std::string CDecoderModule::formatInstruction(const CompactInstruction& instr) const
 {
 	std::ostringstream oss;
@@ -244,12 +387,19 @@ std::string CDecoderModule::formatInstruction(const CompactInstruction& instr) c
 	return oss.str();
 }
 
-bool CDecoderModule::resolveSymbol(uint64_t runtimeAddress, ImageSymbol& outSymbol)
+std::string CDecoderModule::formatInstruction(const Instruction& instr) const
+{
+	std::ostringstream oss;
+	formatInstruction(oss, instr);
+	return oss.str();
+}
+
+bool CDecoderModule::resolveSymbol(Address runtimeAddress, ImageSymbol& outSymbol)
 {
 	return _backPtr->getSymbols().findSymbolByAddress(runtimeAddress, true, outSymbol);
 }
 
-bool CDecoderModule::resolveModule(uint64_t runtimeAddress, ProcessImage& outImage, uint64_t& outOffset)
+bool CDecoderModule::resolveModule(Address runtimeAddress, ProcessImage& outImage, uint64_t& outOffset)
 {
     if (_backPtr->getSymbols().findModuleByAddress(runtimeAddress, outImage))
     {
