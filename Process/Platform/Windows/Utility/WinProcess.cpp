@@ -142,7 +142,7 @@ PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_na
 
 	while (true)
 	{
-		// Check if name is avaiable
+		// Check if name is available
 		if (current_info->ImageName.Buffer)
 		{
 			std::wstring current_image_name(current_info->ImageName.Buffer, current_info->ImageName.Length / sizeof(wchar_t));
@@ -150,7 +150,7 @@ PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_na
 
 			if (current_image_name_lower == wprocess_name_lower)
 			{
-				out_process_id = (uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
+				out_process_id = (uint32_t)(ULONG_PTR)current_info->UniqueProcessId;
 				return { EPlatformError::Success, 0 };
 			}
 		}
@@ -223,7 +223,7 @@ PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_na
 
 	while (true)
 	{
-		// Check if name is avaiable
+		// Check if name is available
 		if (current_info->ImageName.Buffer)
 		{
 			std::wstring current_image_name(current_info->ImageName.Buffer, current_info->ImageName.Length / sizeof(wchar_t));
@@ -231,8 +231,7 @@ PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_na
 
 			if (current_image_name_lower == wprocess_name_lower)
 			{
-				process_ids.push_back((uint64_t)(ULONG_PTR)current_info->UniqueProcessId);
-				//out_process_id = (uint64_t)(ULONG_PTR)current_info->UniqueProcessId;
+				process_ids.push_back((uint32_t)(ULONG_PTR)current_info->UniqueProcessId);
 				return { EPlatformError::Success, 0 };
 			}
 		}
