@@ -240,5 +240,22 @@ bool CMemoryModule::restoreReadOnlyMemory(Address addr)
     return true;
 }
 
+std::vector<MemoryCopy> CMemoryModule::getMemorySnapshot(const MemoryRange& memRange, const MemoryRegionFilter& filter)
+{
+    std::vector<MemoryCopy> copiedRegions;
+
+    auto regions = this->queryAllMemoryRegions(memRange, filter);
+    for (const auto& region : regions)
+    {
+        if (!region.read())
+            continue;
+
+        MemoryCopy copy(this, memRange.startAddr, memRange.size());
+        if (copy.readIn())
+            copiedRegions.push_back(std::move(copy));
+    }
+    return copiedRegions;
+}
+
 
 }
