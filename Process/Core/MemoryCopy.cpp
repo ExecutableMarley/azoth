@@ -26,6 +26,15 @@ MemoryCopy::MemoryCopy()
     this->_bufferSize = 0;
 }
 
+MemoryCopy::MemoryCopy(CMemoryModule* memory)
+{
+    this->_memory     = memory;
+    this->_chainAddr  = PointerEndpoint();
+    this->_size       = 0;
+    this->_buffer     = NULL;
+    this->_bufferSize = 0;
+}
+
 MemoryCopy::MemoryCopy(CMemoryModule* mem, uint64_t addr, size_t size)
 {
     this->_memory     = mem;

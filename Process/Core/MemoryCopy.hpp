@@ -40,6 +40,11 @@ public:
 	MemoryCopy();
 
 protected:
+    /**
+     * @brief Constructs a bound and invalid MemoryCopy
+     */
+    MemoryCopy(CMemoryModule* memory);
+
 	MemoryCopy(CMemoryModule* memory, uint64_t addr, size_t size);
 
 	MemoryCopy(CMemoryModule* memory, PointerEndpoint chainAddr, size_t size);
