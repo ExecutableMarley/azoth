@@ -13,6 +13,8 @@
 #include "../Core/MemoryRegion.hpp"
 #include "../Core/MemoryCopy.hpp"
 
+#include <span>
+#include <vector>
 
 namespace Azoth
 {
