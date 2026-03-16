@@ -55,9 +55,9 @@ int main()
     BYTE buffer[64];
     if (!reRegions.empty() && memory.read(reRegions[0].baseAddress, 64, buffer))
     {
-        for (auto instr : decoder.range(buffer, sizeof(buffer), Address::fromPtr(&buffer)))
+        for (auto& instr : decoder.range(buffer, sizeof(buffer), reRegions[0].baseAddress))
         {
-            std::cout << instr.address << " " << decoder.wrap(instr) << std::endl;
+            std::cout << instr.addr() << " " << decoder.fmt(instr) << std::endl;
         }
     }
 

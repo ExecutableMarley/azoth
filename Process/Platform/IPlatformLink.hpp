@@ -51,6 +51,9 @@ public:
 	virtual bool getProcessImage(const std::string& name, ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getAllProcessImages(std::vector<ProcessImage>& processImages) const { return setError(EPlatformError::NotImplemented); }
 
+	virtual bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
+
 	//=== Process Query ===//
 
 	virtual bool getProcessIDByName(const std::string& name, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); }
@@ -95,26 +98,45 @@ public:
 
 protected:
 
+	//Currently not used and experimental. Potentially a good way to keep track if an process is alive.
+	bool handleFailure(EPlatformError platformError, uint64_t osError = 0, bool exitCheck = true) const
+	{
+		if (platformError == EPlatformError::Success) return setError(platformError, osError);
+
+		if (exitCheck && !this->_isDead)
+		{
+			bool isAliveResult;
+			if (isAlive(isAliveResult) && !isAliveResult)
+			{
+				_isDead = true;
+			}
+		}
+		return setError(platformError, osError);
+	}
+
+public:
 	/**
 	 * @brief Sets the last error state and returns a bool indicating platformError == Success
 	 */
-	bool setError(EPlatformError platformError, uint64_t osError = 0) const
+	static bool setError(EPlatformError platformError, uint64_t detail = 0)
 	{
 		_lastError.platformError = platformError;
-		_lastError.osError       = osError;
+		_lastError.osError       = detail;
 		return platformError == EPlatformError::Success;
 	}
 
 	/**
 	 * @brief Sets the last error state and returns a bool indicating platformError == Success
 	 */
-	bool setError(PlatformErrorState state) const
+	static bool setError(PlatformErrorState state)
 	{
 		_lastError = state;
 		return state.platformError == EPlatformError::Success;
 	}
 
 private:
+	mutable bool _isDead = true;
+
 	inline static thread_local PlatformErrorState _lastError;
 public:
 
@@ -131,11 +153,6 @@ public:
  	*       platform link operation returned `false`. On successful calls, the
  	*       error state should be considered to be undefined.
 	*/
-	PlatformErrorState getLastError() const
-	{
-		return _lastError;
-	}
-
 	static PlatformErrorState getLast()
 	{
 		return _lastError;

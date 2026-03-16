@@ -8,6 +8,7 @@
 #include "../ThirdParty/Zydis/Zydis.h"
 #include "../Types/Address.hpp"
 #include "../Types/EProcessArchitecture.hpp"
+#include "../Core/ProcessImage.hpp"
 
 #include <string>
 #include <cstring>
@@ -28,6 +29,8 @@ class CDecoderModule;
 /**
  * @brief Compact representation of a decoded x86/x64 instruction.
  *
+ * @note obsolete
+ * 
  * Size: 40 bytes (padded on 64-bit platforms)
  */
 struct CompactInstruction
@@ -132,36 +135,332 @@ struct CompactInstruction
     }
 };
 
+/**
+ * @brief Represents a single decoded machine instruction.
+ *
+ **/
+class Instruction
+{
+public:
+	/**
+	 * @brief Returns the length of the instruction in bytes.
+	 */
+	uint8_t length() const { return _instr.length; }
+
+	/**
+	 * @brief Returns the runtime address of the instruction.
+	 */
+	Address addr() const { return _runtimeAddr; }
+
+	/**
+	 * @brief Returns the address immediately after the instruction.
+	 */
+	Address end()  const { return _runtimeAddr + _instr.length; }
+
+	/**
+	 * @brief Returns the address of the next sequential instruction.
+	 */
+	Address next() const { return end(); }
+
+	/**
+	 * @brief Checks whether the given address lies within this instruction.
+	 */
+	bool contains(Address addr) const { return addr >= _runtimeAddr && addr < end(); }
+
+	/**
+	 * @brief Returns the underlying decoded ZydisDecodedInstruction object.
+	 */
+	const ZydisDecodedInstruction& raw() const noexcept
+	{
+    	return _instr;
+	}
+
+	/**
+     * @brief Check whether this instruction contains valid decoded data.
+     */
+	bool isValid() const { return _instr.mnemonic != ZYDIS_MNEMONIC_INVALID; }
+
+	/**
+	 * @brief Checks whether the instruction is a NOP.
+	 */
+	bool isNop() const { return _instr.mnemonic == ZYDIS_MNEMONIC_NOP; }
+
+	/**
+	 * @brief Checks whether the instruction is a call.
+	 */
+	bool isCall() const { return _instr.meta.category == ZYDIS_CATEGORY_CALL; }
+
+	/**
+	 * @brief Checks whether the instruction is a conditional or unconditional jump.
+	 */
+	bool isJump() const
+	{
+        return _instr.meta.category == ZYDIS_CATEGORY_COND_BR ||
+               _instr.meta.category == ZYDIS_CATEGORY_UNCOND_BR;
+    }
+
+	/**
+	 * @brief Checks whether the instruction is a return.
+	 */
+	bool isRet() const { return _instr.meta.category == ZYDIS_CATEGORY_RET; }
+	
+	/**
+	 * @brief Checks whether the instruction transfers control flow via branch or call.
+	 */
+	bool isBranch() const { return isCall() || isJump(); }
+
+	/**
+	 * @brief Checks whether the instruction affects control flow.
+	 */
+	bool isControlFlow() const
+	{
+		return _instr.meta.category == ZYDIS_CATEGORY_CALL || 
+           	_instr.meta.category == ZYDIS_CATEGORY_COND_BR ||
+           	_instr.meta.category == ZYDIS_CATEGORY_UNCOND_BR ||
+           	_instr.meta.category == ZYDIS_CATEGORY_RET;
+	}
+
+	/** 
+	 * @brief Checks if the instruction is an unconditional jump or a return. 
+     * @note These instructions usually mark the end of a basic block with no fall-through.
+     */
+	bool isUnconditionalFlow() const
+    {
+        return _instr.meta.category == ZYDIS_CATEGORY_UNCOND_BR || 
+               _instr.meta.category == ZYDIS_CATEGORY_RET;
+    }
+
+	/**
+	 * @brief Checks whether this instruction terminates linear execution.
+	 *
+	 * Includes control-flow instructions as well as trap or halt instructions.
+	 */
+	bool isTerminator() const
+	{
+		return isControlFlow() || _instr.mnemonic == ZYDIS_MNEMONIC_INT3 || _instr.mnemonic == ZYDIS_MNEMONIC_HLT;
+	}
+
+	/**
+	 * @brief Checks whether the instruction modifies the stack pointer.
+	 */
+	bool modifiesStack() const
+	{
+		return _instr.meta.category == ZYDIS_CATEGORY_PUSH ||
+        	_instr.meta.category == ZYDIS_CATEGORY_POP ||
+           	_instr.meta.category == ZYDIS_CATEGORY_CALL ||
+           	_instr.meta.category == ZYDIS_CATEGORY_RET;
+	}
+
+	/**
+	 * @brief Checks whether the instruction uses relative addressing.
+	 */
+	bool isRelative() const { return (_instr.attributes & ZYDIS_ATTRIB_IS_RELATIVE) != 0; }
+
+	/**
+	 * @brief Checks whether the instruction contains an immediate operand.
+	 */
+	bool hasImmediate() const { return _instr.raw.imm[0].size != 0 || _instr.raw.imm[1].size != 0; }
+
+	/**
+	 * @brief Checks whether the instruction contains a displacement.
+	 */
+	bool hasDisplacement() const { return _instr.raw.disp.size != 0; }
+
+	/**
+	 * @brief Checks whether the instruction contains an immediate or displacement operand.
+	 */
+	bool hasImmediateOrDisplacement() const { return hasImmediate() || hasDisplacement(); }
+
+	//Consider if RIP-relative addressing is covered
+	/**
+	 * @brief Checks whether the instruction may reference a runtime address.
+	 *
+	 * This is typically the case for instructions using relative immediate
+	 * or displacements that resolve to code or data addresses.
+	 */
+	bool mayReferenceAddress() const { return isRelative() && hasImmediateOrDisplacement(); }
+
+	/**
+	 * @brief Computes the absolute address referenced by an operand.
+	 *
+	 * @param operand Operand to resolve.
+	 * @param outAddr Receives the computed address on success.
+	 * @return True if an address could be resolved.
+	 */
+	bool getAbsoluteAddress(const ZydisDecodedOperand& operand, uint64_t& outAddr) const
+	{
+		if (operand.type != ZYDIS_OPERAND_TYPE_MEMORY && operand.type != ZYDIS_OPERAND_TYPE_IMMEDIATE)
+		{
+        	return false;
+    	}
+
+		return ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&_instr, &operand, _runtimeAddr, &outAddr));
+	}
+
+	/**
+	 * @brief Computes the absolute address referenced by an operand.
+	 *
+	 * @param operand Operand to resolve.
+	 * 
+	 * Returns a null address if the operand cannot be resolved.
+	 */
+	Address getAbsoluteAddress(const ZydisDecodedOperand& operand) const
+	{
+		if (operand.type != ZYDIS_OPERAND_TYPE_MEMORY && operand.type != ZYDIS_OPERAND_TYPE_IMMEDIATE)
+		{
+        	return Address::null();
+    	}
+
+		uint64_t outAddr;
+		if (ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&_instr, &operand, _runtimeAddr, &outAddr)))
+			return outAddr;
+		return Address::null();
+	}
+
+private:
+	Address _runtimeAddr = 0;
+	ZydisDecodedInstruction _instr{};
+	ZydisDecoderContext _context{};
+
+	friend class CDecoderModule;
+	friend class InstructionFormatter;
+};
+
+/**
+ * @brief Container for decoded instruction operands.
+ */
 class InstructionOperands
 {
 public:
+	/** @brief Maximum number of operands supported by the decoder. */
 	static constexpr size_t MaxOperands = 10;
+
+	/**
+	 * @brief Clears all stored operands.
+	 */
+	void reset() { count = 0; }
+
+	/**
+	 * @brief Returns the number of operands.
+	 */
+	size_t size() const { return count; }
+
+	/**
+	 * @brief Checks whether no operands are present.
+	 */
+	bool empty() const { return count == 0; }
+
+	/**
+	 * @brief Returns an iterator to the first operand.
+	 */
+	auto begin() { return operands; }
+
+	/**
+	 * @brief Returns an iterator past the last operand.
+	 */
+	auto end()   { return operands + count; }
+
+	/**
+	 * @brief Returns an iterator to the first operand.
+	 */
+	auto begin() const { return operands; }
+
+	/**
+	 * @brief Returns an iterator past the last operand.
+	 */
+	auto end() const   { return operands + count; }
+
+	/**
+	 * @brief Returns the operand at the given index.
+	 *
+	 * @param index Operand index.
+	 */
+	ZydisDecodedOperand& operator[](size_t index)
+	{
+		assert(index < count);
+		return operands[index];
+	}
+
+private:
+	size_t count = 0;
 
 	//Consider wrap around helper class
 	ZydisDecodedOperand operands[MaxOperands];
 
-	size_t count = 0;
+	friend class CDecoderModule;
+};
 
-	void reset() { count = 0; }
+/**
+ * @brief Cursor used to iterate through a buffer during instruction decoding.
+ * 
+ * The cursor tracks the current buffer position, the number of remaining bytes,
+ * and the corresponding runtime address. It is typically advanced as instructions
+ * are decoded sequentially.
+ */
+class DecoderCursor
+{
+public:
+	const uint8_t* buffer;
+	size_t remainingSize;
+	uint64_t runtimeAddr;
 
-	ZydisDecodedOperand& operator[](size_t index)
+	/**
+	 * @brief Returns the runtime address of the current position.
+	 */
+	Address currentAddress() const { return runtimeAddr; }
+
+	/**
+	 * @brief Returns a pointer to the end of the buffer.
+	 */
+	const uint8_t* end() const { return buffer + remainingSize; }
+
+	/**
+	 * @brief Checks whether more bytes remain to be processed.
+	 */
+	bool hasMore() const { return remainingSize > 0; }
+
+	/**
+	 * @brief Checks whether the cursor has reached the end of the buffer.
+	 */
+	bool empty()   const { return remainingSize == 0; }
+
+	/**
+	 * @brief Checks whether at least @p size bytes remain.
+	 */
+	bool canRead(size_t size) const { return remainingSize >= size; }
+
+	/**
+	 * @brief Advances the cursor by the specified number of bytes.
+	 *
+	 * If fewer bytes remain than requested, the cursor advances to the end.
+	 */
+	void advance(size_t size)
 	{
-		return operands[index];
+		size_t actualStep = std::min(size, remainingSize);
+
+		buffer        += actualStep;
+    	remainingSize -= actualStep;
+    	runtimeAddr   += actualStep;
 	}
+
+	/**
+	 * @brief Checks whether the cursor still contains data.
+	 */
+	explicit operator bool() const noexcept { return remainingSize > 0; }
 };
 
 class InstructionIterator
 {
 public:
-    using value_type = CompactInstruction;
-    using reference  = const CompactInstruction&;
-    using pointer    = const CompactInstruction*;
+    using value_type = Instruction;
+    using reference  = const Instruction&;
+    using pointer    = const Instruction*;
     using iterator_category = std::input_iterator_tag;
 
     InstructionIterator() = default;
 
     InstructionIterator(CDecoderModule* decoder, const uint8_t* buffer, size_t size, uint64_t addr)
-        : _decoder(decoder), _buffer(buffer), _size(size), _addr(addr)
+        : _decoder(decoder), _cursor{ buffer, size, addr }
     {
         ++(*this); // decode first
     }
@@ -181,10 +480,8 @@ public:
 
 private:
     CDecoderModule* _decoder = nullptr;
-    const uint8_t*  _buffer  = nullptr;
-    size_t          _size    = 0;
-    uint64_t        _addr    = 0;
-    CompactInstruction _current{};
+    DecoderCursor   _cursor{};
+    Instruction _current{};
 };
 
 class InstructionRange
@@ -210,18 +507,59 @@ private:
     uint64_t        _addr;
 };
 
+class InstructionFormatter
+{
+public:
+	enum class Style
+	{
+		Intel,
+		ATnT,
+		MASM
+	};
+
+    std::ostream& format(std::ostream& os, const Instruction& instr) const;
+
+	class FormattedInstruction
+	{
+	public:
+		FormattedInstruction(const Instruction &instr,
+							 const InstructionFormatter &formatter)
+			: _instr(instr), _formatter(formatter) {}
+
+		friend std::ostream &operator<<(std::ostream &os, const FormattedInstruction &f)
+		{
+			return f._formatter.format(os, f._instr);
+		}
+
+	private:
+		const Instruction &_instr;
+		const InstructionFormatter &_formatter;
+	};
+
+	static const InstructionFormatter& get(Style style = Style::Intel)
+	{
+		static InstructionFormatter intel(Style::Intel);
+		static InstructionFormatter att(Style::ATnT);
+		static InstructionFormatter masm(Style::MASM);
+
+		switch (style)
+    	{
+        	case Style::Intel: return intel;
+        	case Style::ATnT:  return att;
+        	case Style::MASM:  return masm;
+    	}
+
+		return intel;
+	}
+
+private:
+	ZydisFormatter _formatter;
+
+	InstructionFormatter(Style style);
+};
 
 class CDecoderModule
 {
-	struct FormatterProxy {
-        const CDecoderModule& module;
-        const CompactInstruction& ci;
-
-		//Proxy operator
-        friend std::ostream& operator<<(std::ostream& os, const FormatterProxy& proxy) {
-            return proxy.module.formatInstruction(os, proxy.ci);
-        }
-    };
 public:
     CDecoderModule(CProcess* backPtr);
 
@@ -234,60 +572,19 @@ public:
 
 	void setTargetArchitecture(EProcessArchitecture architecture);
 
+	//setFormatting style
+
 	//Todo: Reconsider CompactInstruction class
 	//Maybe we should simply add an c++ wrapper around ZydisDecodedInstruction instead
 	//As long as we do not want to store the instructions. Size does not matter anyways
 
-    bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, CompactInstruction& out)
-	{
-		ZydisDecodedInstruction instr{};
-		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &instr)))
-		{
-			return false;
-		}
+    bool decodeAt(const uint8_t* buffer, size_t size, Address runtimeAddr, CompactInstruction& out);
+	
+	bool decodeAt(const uint8_t* buffer, size_t size, Address runtimeAddr, Instruction& out);
 
-		out.fromZydis(instr, buffer, runtimeAddr);
-		return true;
-	}
+	bool decodeNext(DecoderCursor& cursor, CompactInstruction& out);
 
-	bool decodeAt(const uint8_t* buffer, size_t size, uint64_t runtimeAddr, ZydisDecodedInstruction& out)
-	{
-		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &out)))
-		{
-			return false;
-		}
-		return true;
-	}
-
-	bool decodeNext(const uint8_t*& buffer, size_t& size, uint64_t& runtimeAddr, CompactInstruction& out)
-	{
-		ZydisDecodedInstruction instr{};
-    	if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &instr)))
-    	{
-        	return false;
-    	}
-
-    	out.fromZydis(instr, buffer, runtimeAddr);
-
-    	// Advance state
-    	buffer      += instr.length;
-    	size        -= instr.length;
-    	runtimeAddr += instr.length;
-    	return true;
-	}
-
-	bool decodeNext(const uint8_t*& buffer, size_t& size, uint64_t& runtimeAddr, ZydisDecodedInstruction& out)
-	{
-    	if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, buffer, size, &out)))
-    	{
-        	return false;
-    	}
-		// Advance state
-    	buffer      += out.length;
-    	size        -= out.length;
-    	runtimeAddr += out.length;
-    	return true;
-	}
+	bool decodeNext(DecoderCursor& cursor, Instruction& out);
 
 	//Iterator support
     InstructionRange range(const uint8_t* buffer, size_t size, uint64_t addr)
@@ -295,104 +592,49 @@ public:
 		return InstructionRange(this, buffer, size, addr);
 	}
 
-	bool decodeOperands(const CompactInstruction& instr, InstructionOperands& out)
-	{
-		ZydisDecodedInstruction zydisInstruction;
-		if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, instr.raw_bytes, sizeof(instr.raw_bytes), &zydisInstruction, out.operands)))
-			return false;
+	bool decodeOperands(const CompactInstruction& instr, InstructionOperands& out);
 
-		out.count = zydisInstruction.operand_count;
-		return true;
-	}
+	bool decodeOperands(const Instruction& instr, InstructionOperands& out);
 
-	bool decodeOperands(const ZydisDecodedInstruction& instr, InstructionOperands& out)
-	{
-		if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, nullptr, &instr, out.operands, InstructionOperands::MaxOperands)))
-			return false;
-		
-		out.count = instr.operand_count;
-		return true;
-	}
-
-	uint64_t decodeAbsoluteMemoryAddress(const uint8_t* buffer, size_t bufferSize, uint64_t runtimeAddress, int operandIndex = -1)
-	{
-		ZydisDecodedInstruction instr;
-		ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
-
-		if (ZYAN_FAILED(ZydisDecoderDecodeFull(&_decoder, buffer, bufferSize, &instr, operands)))
-			return 0;
-
-		// Find operand index
-		int targetIndex = operandIndex;
-		if (targetIndex < 0)
-		{
-			for (uint32_t i = 0; i < instr.operand_count; ++i)
-			{
-				const auto& op = operands[i];
-				if (op.type == ZYDIS_OPERAND_TYPE_MEMORY || op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
-				{
-					targetIndex = i;
-					break;
-				}
-			}
-		}
-
-		if (targetIndex < 0 || targetIndex >= static_cast<int>(instr.operand_count))
-			return 0;
-
-		const auto& op = operands[targetIndex];
-		if (op.type != ZYDIS_OPERAND_TYPE_MEMORY || op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
-			return 0;
-
-		uint64_t absAddr = 0;
-		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&instr, &op, runtimeAddress, &absAddr)))
-			return 0;
-
-		return absAddr;
-	}
-
-	uint64_t decodeAbsoluteMemoryAddress(const CompactInstruction& instr, const ZydisDecodedOperand& operand)
-	{
-		ZydisDecodedInstruction zydisInstr;
-		if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, nullptr, instr.raw_bytes, sizeof(instr.raw_bytes), &zydisInstr)))
-			return 0;
-
-		uint64_t absAddr = 0;
-		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&zydisInstr, &operand, instr.address, &absAddr)))
-			return 0;
-
-		return absAddr;
-	}
-
-	uint64_t decodeAbsoluteMemoryAddress(const ZydisDecodedInstruction& instr, const ZydisDecodedOperand& operand, Address runtimeAddress)
-	{
-		uint64_t absAddr = 0;
-		if (ZYAN_FAILED(ZydisCalcAbsoluteAddress(&instr, &operand, runtimeAddress, &absAddr)))
-			return 0;
-
-		return absAddr;
-	}
+	Address decodeAbsoluteMemoryAddress(const uint8_t* buffer, size_t bufferSize, Address runtimeAddress, int operandIndex = -1);
 
 	std::ostream& formatInstruction(std::ostream& os, const CompactInstruction& instr) const;
 
+	std::ostream& formatInstruction(std::ostream& os, const Instruction& instr) const;
+
     std::string formatInstruction(const CompactInstruction& instr) const;
 
+	std::string formatInstruction(const Instruction& instr) const;
+
+private:
+	template <typename T>
+	struct FormatterProxy {
+        const CDecoderModule& module;
+        const T& ci;
+
+		//Proxy operator
+        friend std::ostream& operator<<(std::ostream& os, const FormatterProxy& proxy) {
+            return proxy.module.formatInstruction(os, proxy.ci);
+        }
+    };
+
+public:
 	//Slightly more convenient << use
-	FormatterProxy wrap(const CompactInstruction& ci) const {
+	template <typename T>
+	FormatterProxy<T> fmt(const T& ci) const
+	{
         return { *this, ci };
     }
+
+	bool resolveSymbol(Address runtimeAddress, ImageSymbol& outSymbol);
+
+	bool resolveModule(Address runtimeAddress, ProcessImage& outImage, uint64_t& outOffset);
 
 private:
 	CProcess*      _backPtr; 
 	ZydisDecoder   _decoder;   //20 Bytes
 	ZydisFormatter _formatter; //600 Bytes
 	bool _isReady = false;
-
-	struct ZydisFormatterFunctions
-	{
-		ZydisFormatterFunc default_print_address_absolute;
-	};
-	ZydisFormatterFunctions orig;
 };
 
 

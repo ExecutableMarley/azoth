@@ -15,9 +15,17 @@ namespace Azoth
 
 MemoryBlock::MemoryBlock()
 {
-    this->_memory = nullptr;
-    this->_chainAddr = PointerEndpoint();
-    this->_size = 0;
+    this->_memory     = nullptr;
+    this->_chainAddr  = PointerEndpoint();
+    this->_size       = 0;
+    this->_ownsMemory = false;
+}
+
+MemoryBlock::MemoryBlock(CMemoryModule* mem)
+{
+    this->_memory     = mem;
+    this->_chainAddr  = PointerEndpoint();
+    this->_size       = 0;
     this->_ownsMemory = false;
 }
 

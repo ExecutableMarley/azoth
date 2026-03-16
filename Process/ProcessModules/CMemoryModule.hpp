@@ -16,8 +16,9 @@
 
 #include "../Types/Address.hpp"
 #include "../Core/MemoryRegion.hpp"
+#include "../Core/MemoryBlock.hpp"
+#include "../Core/MemoryCopy.hpp"
 #include "../Platform/IPlatformLink.hpp"
-
 
 namespace Azoth
 {
@@ -420,6 +421,38 @@ public:
      bool patchReadOnlyMemory(Address addr, size_t size, const BYTE* buffer);
 
      bool restoreReadOnlyMemory(Address addr);
+
+     //=== <Placeholder> ===//
+
+     //MemoryBlock as a view
+     MemoryBlock getMemoryView(Address addr, size_t size)
+     {
+          return MemoryBlock(this, addr, size, false);
+     }
+
+     //Owning memory block
+     MemoryBlock allocateMemoryBlock(size_t size, EMemoryProtection protection = EMemoryProtection::RWX)
+     {
+          Address allocatedAddr = virtualAllocate(size, protection);
+          if (allocatedAddr)
+          {
+               return MemoryBlock(this, allocatedAddr, size, true);
+          }
+          return MemoryBlock(this);
+     }
+
+     //Simple continuous copy
+     MemoryCopy getMemoryCopy(Address addr, size_t size)
+     {
+          MemoryCopy copy(this, addr, size);
+          if (copy.readIn())
+               return copy;
+          return MemoryCopy(this);
+     }
+
+     //Complex list of different continuous regions
+     std::vector<MemoryCopy> getMemorySnapshot(const MemoryRange& memRange, const MemoryRegionFilter& filter = {});
+
 
 private:
     struct CodeRestorePoint

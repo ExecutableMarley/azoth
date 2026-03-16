@@ -141,6 +141,12 @@ public:
         return Address{};
     }
 
+    /** @brief Returns a null (zero) address. */
+    static constexpr Address invalid() noexcept
+    {
+        return Address{};
+    }
+
     static Address fromPtr(const void* ptr) noexcept
     {
         return Address(reinterpret_cast<value_type>(ptr));

@@ -40,6 +40,12 @@ public:
     MemoryBlock();
 
 protected:
+
+    /**
+     * @brief Constructs a bound and invalid MemoryBlock
+     */
+    MemoryBlock(CMemoryModule* mem);
+
     /**
      * @brief Construct a MemoryBlock bound to an address and memory instance.
      *

@@ -66,5 +66,8 @@ PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, HMODULE 
 
 PlatformErrorState retrieveExportSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols);
 
+PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, HMODULE hmod, std::vector<ImageSymbol>& symbols);
+
+PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols);
 
 }

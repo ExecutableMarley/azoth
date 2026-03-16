@@ -29,8 +29,10 @@
 #include "Types/EProcessPrivilegeLevel.hpp"
 #include "Platform/IPlatformLink.hpp"
 #include "ProcessModules/CMemoryModule.hpp"
+#include "ProcessModules/CSymbolModule.hpp"
 #include "ProcessModules/CDecoderModule.hpp"
 #include "ProcessModules/CScannerModule.hpp"
+#include "CSystem.hpp"
 
 #include <string>
 #include <memory>
@@ -73,7 +75,7 @@ public:
 	 * These steps must be performed explicitly.
 	 */
 	CProcess(std::unique_ptr<IPlatformLink> platformLink) : _platformLink(std::move(platformLink)),
-		_memory(this, _platformLink.get()), _decoder(this), _scanner(this),
+		_memory(this, _platformLink.get()), _symbols(this, _platformLink.get()), _decoder(this), _scanner(this),
 		_processID(0)
 	{
 		assert(_platformLink);
@@ -173,7 +175,8 @@ public:
 	 * @brief Check whether the attached process is still alive.
 	 */
 	bool isAlive()
-	{	bool isAliveState = false;
+	{
+		bool isAliveState = false;
 		_platformLink->isAlive(isAliveState);
 		return isAliveState;
 	}
@@ -267,8 +270,6 @@ public:
     	return _platformLink->setError(EPlatformError::OperationTimeout);
 	}
 
-	//ImageSymbols?
-
 	//Threads
 
 private:
@@ -284,11 +285,13 @@ private:
 
 public:
 	CMemoryModule& getMemory() { return _memory; }
+	CSymbolModule& getSymbols() { return _symbols; }
 	CDecoderModule& getDecoder() { return _decoder; }
 	CScannerModule& getScanner() { return _scanner; }
 
 private:
 	CMemoryModule  _memory;
+	CSymbolModule  _symbols;
 	CDecoderModule _decoder;
 	CScannerModule _scanner;
 };
