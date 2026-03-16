@@ -32,6 +32,7 @@
 #include "ProcessModules/CSymbolModule.hpp"
 #include "ProcessModules/CDecoderModule.hpp"
 #include "ProcessModules/CScannerModule.hpp"
+#include "CSystem.hpp"
 
 #include <string>
 #include <memory>
@@ -268,8 +269,6 @@ public:
     	}
     	return _platformLink->setError(EPlatformError::OperationTimeout);
 	}
-
-	//ImageSymbols?
 
 	//Threads
 
