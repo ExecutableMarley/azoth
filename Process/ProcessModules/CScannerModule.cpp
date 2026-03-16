@@ -74,18 +74,26 @@ Address CScannerModule::findPatternEx(const Pattern& pattern, const MemoryRegion
         return findPatternEx(MemoryRange::max_range_64bit(), pattern, filter);
 }
 
-Address CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, const MemoryRegionFilter& filter)
+Address CScannerModule::findPatternEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, const MemoryRegionFilter& filter)
 {
     const size_t patternSize = pattern.size();
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (const BYTE* curByte = memCopy.getBuffer(); curByte < (regionEnd - patternSize); curByte++)
+    for (const auto& memCopy : memSnap)
     {
-        if (pattern.matches(curByte, regionEnd))
+        const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (const BYTE* curByte = memCopy.getBuffer(); curByte < (regionEnd - patternSize); curByte++)
         {
-            return memCopy.translate(curByte);
+            if (pattern.matches(curByte, regionEnd))
+            {
+                return memCopy.translate(curByte);
+            }
         }
     }
     return 0;
+}
+
+Address CScannerModule::findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, const MemoryRegionFilter& filter)
+{
+    return findPatternEx(std::span{ &memCopy, 1 }, pattern, filter);
 }
 
 std::vector<Address> CScannerModule::findAllPatternEx(const MemoryRange& memRange, const Pattern& pattern, const MemoryRegionFilter& filter)
@@ -131,7 +139,7 @@ std::vector<Address> CScannerModule::findAllPatternEx(Address start, Address sto
     return findAllPatternEx(MemoryRange(start, stop), pattern, filter);
 }
 
-std::vector<Address> CScannerModule:: findAllPatternEx(const Pattern& pattern, const MemoryRegionFilter& filter)
+std::vector<Address> CScannerModule::findAllPatternEx(const Pattern& pattern, const MemoryRegionFilter& filter)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -140,20 +148,28 @@ std::vector<Address> CScannerModule:: findAllPatternEx(const Pattern& pattern, c
         return findAllPatternEx(MemoryRange::max_range_64bit(), pattern, filter);
 }
 
-std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, const MemoryRegionFilter& filter)
+std::vector<Address> CScannerModule::findAllPatternEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, const MemoryRegionFilter& filter)
 {
     std::vector<Address> results;
 
     const size_t patternSize = pattern.size();
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (const BYTE* curByte = memCopy.getBuffer(); curByte < (regionEnd - patternSize); curByte++)
+    for (const auto& memCopy : memSnap)
     {
-        if (pattern.matches(curByte, regionEnd))
+        const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (BYTE* curByte = memCopy.getBuffer(); curByte < (regionEnd - patternSize); curByte++)
         {
-            results.push_back(memCopy.translate(curByte));
+            if (pattern.matches(curByte, regionEnd))
+            {
+                results.push_back(memCopy.translate(curByte));
+            }
         }
     }
     return results;
+}
+
+std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, const MemoryRegionFilter& filter)
+{
+    return findAllPatternEx(std::span{ &memCopy, 1 }, pattern, filter);
 }
 
 //--------------------------------------------------------
@@ -223,35 +239,44 @@ Address CScannerModule::signatureScanEx(const Pattern& pattern, short type, int 
         return signatureScanEx(MemoryRange::max_range_64bit(), pattern, type, operatorIndex, addressOffset);
 }
 
-Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+Address CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
 {
     size_t patternSize = pattern.size();
 
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-
-    for (BYTE* curByte = memCopy.getBuffer(); curByte < (regionEnd - patternSize); curByte++)
+    for (auto& memCopy : memSnap)
     {
-        if (pattern.matches(curByte, regionEnd))
-        {
-            //Address in remote process
-            uint64_t ptr = memCopy.translate(curByte);
+        const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
 
-            //Decode the address from Instruction Operand
-            if (type & 1)
+        for (BYTE *curByte = memCopy.getBuffer(); curByte < (regionEnd - patternSize); curByte++)
+        {
+            if (pattern.matches(curByte, regionEnd))
             {
-                ptr = _backPtr->getDecoder().decodeAbsoluteMemoryAddress(curByte, regionEnd - curByte, ptr, operatorIndex);
-                if (ptr == 0)
-                    return 0;
+                // Address in remote process
+                uint64_t ptr = memCopy.translate(curByte);
+
+                // Decode the address from Instruction Operand
+                if (type & 1)
+                {
+                    ptr = _backPtr->getDecoder().decodeAbsoluteMemoryAddress(curByte, regionEnd - curByte, ptr, operatorIndex);
+                    if (ptr == 0)
+                        return 0;
+                }
+                // Calculate relative address
+                if (type & 2)
+                {
+                    ptr -= memCopy.getBaseAddress();
+                }
+                return ptr + addressOffset;
             }
-            //Calculate relative address
-            if (type & 2)
-            {
-                ptr -= memCopy.getBaseAddress();
-            }
-            return ptr + addressOffset;
         }
     }
+
     return 0;
+}
+
+Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+{
+    return signatureScanEx(std::span{ &memCopy, 1 }, pattern, type, operatorIndex, addressOffset);
 }
 
 //--------------------------------------------------------
@@ -297,20 +322,29 @@ Address CScannerModule::findNextValue(Address start, Address stop, BYTE* value, 
     return findNextValue(MemoryRange(start, stop), value, valueSize, filter, alignment);
 }
 
-Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
+Address CScannerModule::findNextValue(const std::span<const MemoryCopy> memSnap, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
-    if (!memCopy.valid())
-        return 0;
-
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
+    for (const auto &memCopy : memSnap)
     {
-        if (memcmp(curByte, value, valueSize) == 0)
+        if (!memCopy.valid())
+            continue;
+
+        const BYTE *regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (BYTE *curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
         {
-            return memCopy.translate(curByte);
+            if (memcmp(curByte, value, valueSize) == 0)
+            {
+                return memCopy.translate(curByte);
+            }
         }
     }
+
     return 0;
+}
+
+Address CScannerModule::findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
+{
+    return findNextValue(std::span{ &memCopy, 1 }, value, valueSize, filter, alignment);
 }
 
 std::vector<Address> CScannerModule::findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
@@ -353,19 +387,29 @@ std::vector<Address> CScannerModule::findAllValues(Address start, Address stop, 
     return findAllValues(MemoryRange(start, stop), value, valueSize, filter, alignment);
 }
 
-std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
+std::vector<Address> CScannerModule::findAllValues(const std::span<const MemoryCopy> memSnap, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
 {
     std::vector<Address> results;
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
+
+    for (const auto &memCopy : memSnap)
     {
-        if (memcmp(curByte, value, valueSize) == 0)
+        const BYTE *regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (BYTE *curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + valueSize < regionEnd; curByte += alignment)
         {
-            Address remoteAddress = memCopy.translate(curByte);
-            results.push_back(remoteAddress);
+            if (memcmp(curByte, value, valueSize) == 0)
+            {
+                Address remoteAddress = memCopy.translate(curByte);
+                results.push_back(remoteAddress);
+            }
         }
     }
+
     return results;
+}
+
+std::vector<Address> CScannerModule::findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter, size_t alignment)
+{
+    return findAllValues(std::span{ &memCopy, 1 }, value, valueSize, filter, alignment);
 }
 
 //--------------------------------------------------------
@@ -427,20 +471,30 @@ std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(size
         return scanForStrings(MemoryRange::max_range_64bit(), minSize, filter);
 }
 
-std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const MemoryCopy& memCopy, size_t minSize)
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const std::span<const MemoryCopy> memSnap, size_t minSize)
 {
     std::vector<std::pair<Address, std::string>> results;
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
+
+    for (const auto &memCopy : memSnap)
     {
-        size_t curStringLength = MemIn::findAsciiStringLength(curByte, regionEnd - curByte);
-        if (curStringLength >= minSize)
+        const BYTE *regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (BYTE *curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
         {
-            results.emplace_back(memCopy.translate(curByte), std::string(reinterpret_cast<const char*>(curByte), curStringLength));
+            size_t curStringLength = MemIn::findAsciiStringLength(curByte, regionEnd - curByte);
+            if (curStringLength >= minSize)
+            {
+                results.emplace_back(memCopy.translate(curByte), std::string(reinterpret_cast<const char *>(curByte), curStringLength));
+            }
+            curByte += curStringLength;
         }
-        curByte += curStringLength;
     }
+
     return results;
+}
+
+std::vector<std::pair<Address, std::string>> CScannerModule::scanForStrings(const MemoryCopy& memCopy, size_t minSize)
+{
+    return scanForStrings(std::span{ &memCopy, 1 }, minSize);
 }
 
 std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(const MemoryRange& memRange, size_t minSize, const MemoryRegionFilter& filter)
@@ -498,20 +552,30 @@ std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrin
         return scanForWideStrings(MemoryRange::max_range_64bit(), minSize, filter);
 }
 
-std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
+std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(const std::span<const MemoryCopy> memSnap, size_t minSize)
 {
     std::vector<std::pair<Address, std::u16string>> results;
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
+
+    for (const auto &memCopy : memSnap)
     {
-        size_t curStringLength = MemIn::findAsciiStringUTF16Length(curByte, regionEnd - curByte) / sizeof(char16_t);
-        if (curStringLength >= minSize)
+        const BYTE *regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (BYTE *curByte = memCopy.getBuffer(); curByte + minSize < regionEnd; curByte++)
         {
-            results.emplace_back(memCopy.translate(curByte), std::u16string((char16_t*)curByte, curStringLength));
+            size_t curStringLength = MemIn::findAsciiStringUTF16Length(curByte, regionEnd - curByte) / sizeof(char16_t);
+            if (curStringLength >= minSize)
+            {
+                results.emplace_back(memCopy.translate(curByte), std::u16string((char16_t *)curByte, curStringLength));
+            }
+            curByte += curStringLength;
         }
-        curByte += curStringLength;
     }
+
     return results;
+}
+
+std::vector<std::pair<Address, std::u16string>> CScannerModule::scanForWideStrings(const MemoryCopy& memCopy, size_t minSize)
+{
+    return scanForWideStrings(std::span{ &memCopy, 1 }, minSize);
 }
 
 Address CScannerModule::scanForCodeCave(const MemoryRange& memRange, size_t minSize, size_t alignment)
@@ -563,33 +627,40 @@ Address CScannerModule::scanForCodeCave(size_t minSize, size_t alignment)
         return scanForCodeCave(MemoryRange::max_range_64bit(), minSize, alignment);
 }
 
-Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment)
+Address CScannerModule::scanForCodeCave(const std::span<const MemoryCopy> memSnap, size_t minSize, size_t alignment)
 {
-    const BYTE* regionEnd = memCopy.getBuffer() + memCopy.getSize();
-    for (BYTE* curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + minSize < regionEnd; curByte += alignment)
+    for (const auto &memCopy : memSnap)
     {
-        if (*curByte == *(curByte + 1))
+        const BYTE *regionEnd = memCopy.getBuffer() + memCopy.getSize();
+        for (BYTE *curByte = Address::alignUp(memCopy.getBuffer(), alignment); curByte + minSize < regionEnd; curByte += alignment)
         {
-            size_t codeCaveSize = MemIn::findCodeCaveSize(curByte, regionEnd - curByte);
-            if (codeCaveSize > minSize)
+            if (*curByte == *(curByte + 1))
             {
-                return memCopy.translate(curByte);
+                size_t codeCaveSize = MemIn::findCodeCaveSize(curByte, regionEnd - curByte);
+                if (codeCaveSize > minSize)
+                {
+                    return memCopy.translate(curByte);
+                }
             }
         }
     }
+
     return 0;
 }
 
-std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module, Address relativeTargetAddress)
+Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment)
 {
-    if (!module.valid() || relativeTargetAddress >= module.size)
+    return scanForCodeCave(std::span{ &memCopy, 1 }, minSize, alignment);
+}
+
+std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module, Address absoluteTargetAddress)
+{
+    if (!module.valid() || !((MemoryRange)module).contains(absoluteTargetAddress))
         return {};
 
     std::vector<Address> crossRefs;
-
     auto& decoder = this->_backPtr->getDecoder();
-
-    const Address absoluteTargetAddress = module.baseAddress + relativeTargetAddress;
+    //const Address absoluteTargetAddress = module.baseAddress + relativeTargetAddress;
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -639,54 +710,61 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module
     return crossRefs;
 }
 
-std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy, Address relativeTargetAddress)
+std::vector<Address> CScannerModule::findAllCrossRefs(std::span<const MemoryCopy> memSnap, Address absoluteTargetAddress)
 {
     //Todo: We should consider storing vmemory mapping info inside memCopy
 
-    if (!memCopy.valid() || relativeTargetAddress >= memCopy.getSize())
-        return {};
-
     std::vector<Address> crossRefs;
     auto& decoder = this->_backPtr->getDecoder();
-    const Address absoluteTargetAddress = memCopy.getBaseAddress() + relativeTargetAddress;
+    //const Address absoluteTargetAddress = 0 + relativeTargetAddress;
 
-    DecoderCursor cursor{ memCopy.getBuffer(), memCopy.getSize(), memCopy.getBaseAddress() };
-    Instruction decodedInstr;
-    InstructionOperands operands;
-
-    while (cursor)
+    for (const auto &memCopy : memSnap)
     {
-        if (!decoder.decodeNext(cursor, decodedInstr))
-        {
-            // Skip 1 byte and try again
-            cursor.advance(1);
+        if (!memCopy.valid() || !((MemoryRange)memCopy).contains(absoluteTargetAddress))
             continue;
-        }
 
-        if (!decodedInstr.mayReferenceAddress())
-        {
-            continue;
-        }
+        DecoderCursor cursor{memCopy.getBuffer(), memCopy.getSize(), memCopy.getBaseAddress()};
+        Instruction decodedInstr;
+        InstructionOperands operands;
 
-        if (decoder.decodeOperands(decodedInstr, operands))
+        while (cursor)
         {
-            for (const auto& op : operands)
+            if (!decoder.decodeNext(cursor, decodedInstr))
             {
-                Address addr = decodedInstr.getAbsoluteAddress(op);
-                if (addr == absoluteTargetAddress)
-                    crossRefs.push_back(decodedInstr.addr());
+                // Skip 1 byte and try again
+                cursor.advance(1);
+                continue;
+            }
+
+            if (!decodedInstr.mayReferenceAddress())
+            {
+                continue;
+            }
+
+            if (decoder.decodeOperands(decodedInstr, operands))
+            {
+                for (const auto &op : operands)
+                {
+                    Address addr = decodedInstr.getAbsoluteAddress(op);
+                    if (addr == absoluteTargetAddress)
+                        crossRefs.push_back(decodedInstr.addr());
+                }
             }
         }
     }
-    
     return crossRefs;
+}
+
+std::vector<Address> CScannerModule::findAllCrossRefs(const MemoryCopy& memCopy, Address absoluteTargetAddress)
+{
+    return findAllCrossRefs(std::span{ &memCopy, 1 }, absoluteTargetAddress);
 }
 
 std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& module, const ImageSymbol& symbol)
 {
     if (symbol.source == SymbolSource::Export && module.name == symbol.name)
     {
-        return findAllCrossRefs(module, symbol.address - module.baseAddress);
+        return findAllCrossRefs(module, symbol.address);
     }
     else
     {
@@ -695,12 +773,38 @@ std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& mod
         if (_backPtr->getSymbols().findSymbolByName(module.name, symbol.name, importSymbol))
         {
             assert( ((MemoryRange)module).contains(importSymbol.address) );
-            return findAllCrossRefs(module, importSymbol.address - module.baseAddress);
+            return findAllCrossRefs(module, importSymbol.address);
         }
         else
             IPlatformLink::setError(EPlatformError::SymbolNotFound);
         return {};
     }
+}
+
+std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& module, std::span<const MemoryCopy> memSnap, const ImageSymbol& symbol)
+{
+    if (symbol.source == SymbolSource::Export && module.name == symbol.name)
+    {
+        return findAllCrossRefs(module, symbol.address);
+    }
+    else
+    {
+        //Get the import symbol, then scan for cross refs to that symbol
+        ImageSymbol importSymbol;
+        if (_backPtr->getSymbols().findSymbolByName(module.name, symbol.name, importSymbol))
+        {
+            assert( ((MemoryRange)module).contains(importSymbol.address) );
+            return findAllCrossRefs(memSnap, importSymbol.address);
+        }
+        else
+            IPlatformLink::setError(EPlatformError::SymbolNotFound);
+        return {};
+    }
+}
+
+std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& module, const MemoryCopy& memCopy, const ImageSymbol& symbol)
+{
+    return findSymbolCrossRefs(module, std::span{ &memCopy, 1 }, symbol);
 }
 
 

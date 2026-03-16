@@ -55,6 +55,8 @@ public:
 
 	Address findPatternEx(const Pattern& pattern, const MemoryRegionFilter& filter = {});
 
+	Address findPatternEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, const MemoryRegionFilter& filter = {});
+
 	Address findPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, const MemoryRegionFilter& filter = {});
 
 	/**
@@ -67,6 +69,8 @@ public:
 	std::vector<Address> findAllPatternEx(Address start, Address stop, const Pattern& pattern, const MemoryRegionFilter& filter = {});
 
 	std::vector<Address> findAllPatternEx(const Pattern& pattern, const MemoryRegionFilter& filter = {});
+
+	std::vector<Address> findAllPatternEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, const MemoryRegionFilter& filter = {});
 
 	std::vector<Address> findAllPatternEx(const MemoryCopy& memCopy, const Pattern& pattern, const MemoryRegionFilter& filter = {});
 
@@ -99,6 +103,9 @@ public:
 	Address signatureScanEx(const Pattern& pattern,
 		short type, int operatorIndex, int addressOffset);
 
+	Address signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, 
+		short type, int operatorIndex, int addressOffset);
+
 	Address signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, 
 		short type, int operatorIndex, int addressOffset);
 
@@ -114,6 +121,8 @@ public:
 	Address findNextValue(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
 	Address findNextValue(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
+
+	Address findNextValue(std::span<const MemoryCopy> memSnap, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
 	Address findNextValue(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
@@ -139,6 +148,12 @@ public:
 	}
 
 	template <typename T>
+	Address findNextValue(std::span<const MemoryCopy> memSnap, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
+	{
+		return findNextValue(memSnap, (BYTE*)&value, sizeof(value), filter);
+	}
+
+	template <typename T>
 	Address findNextValue(const MemoryCopy& memCopy, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findNextValue(memCopy, (BYTE*)&value, sizeof(value), filter);
@@ -154,6 +169,8 @@ public:
 	std::vector<Address> findAllValues(const MemoryRange& memRange, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
 	std::vector<Address> findAllValues(Address start, Address stop, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
+
+	std::vector<Address> findAllValues(std::span<const MemoryCopy> memSnap, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
 	std::vector<Address> findAllValues(const MemoryCopy& memCopy, BYTE* value, size_t valueSize, const MemoryRegionFilter& filter = {}, size_t alignment = 1);
 
@@ -179,6 +196,12 @@ public:
 	}
 
 	template <typename T>
+	std::vector<Address> findAllValues(std::span<const MemoryCopy> memSnap, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
+	{
+		return findAllValues(memSnap, (BYTE*)&value, sizeof(value), filter);
+	}
+
+	template <typename T>
 	std::vector<Address> findAllValues(const MemoryCopy& memCopy, T value, const MemoryRegionFilter& filter = {}, size_t alignment = 1)
 	{
 		return findAllValues(memCopy, (BYTE*)&value, sizeof(value), filter);
@@ -201,6 +224,8 @@ public:
 
 	std::vector<std::pair<Address, std::string>> scanForStrings(size_t minSize, const MemoryRegionFilter& filter = {});
 
+	std::vector<std::pair<Address, std::string>> scanForStrings(std::span<const MemoryCopy> memSnap, size_t minSize);
+
 	std::vector<std::pair<Address, std::string>> scanForStrings(const MemoryCopy& memCopy, size_t minSize);
 
 	/**
@@ -215,6 +240,8 @@ public:
 	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(Address start, Address stop, size_t minSize, const MemoryRegionFilter& filter = {});
 
 	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(size_t minSize, const MemoryRegionFilter& filter = {});
+
+	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(std::span<const MemoryCopy> memSnap, size_t minSize);
 
 	std::vector<std::pair<Address, std::u16string>> scanForWideStrings(const MemoryCopy& memCopy, size_t minSize);
 
@@ -234,6 +261,8 @@ public:
 
 	Address scanForCodeCave(size_t minSize, size_t alignment = 1);
 
+	Address scanForCodeCave(std::span<const MemoryCopy> memSnap, size_t minSize, size_t alignment = 1);
+
 	Address scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment = 1);
 
 	/**
@@ -246,15 +275,21 @@ public:
 	 * or instruction targets inside executable code.
 	 *
 	 * @param module                 The module to scan.
-	 * @param relativeTargetAddress  Target address relative to the module base.
+	 * @param absoluteTargetAddress  The absolute address being referenced by instructions.
 	 *
 	 * @return A list of absolute instruction addresses that reference the target.
 	 */
-	std::vector<Address> findAllCrossRefs(const ProcessImage& module, Address relativeTargetAddress);
+	std::vector<Address> findAllCrossRefs(const ProcessImage& module, Address absoluteTargetAddress);
 
-	std::vector<Address> findAllCrossRefs(const MemoryCopy& memCopy, Address relativeTargetAddress);
+	std::vector<Address> findAllCrossRefs(std::span<const MemoryCopy> memSnap, Address absoluteTargetAddress);
+
+	std::vector<Address> findAllCrossRefs(const MemoryCopy& memCopy, Address absoluteTargetAddress);
 
 	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, const ImageSymbol& symbol);
+
+	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, std::span<const MemoryCopy> memSnap, const ImageSymbol& symbol);
+
+	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, const MemoryCopy& memCopy, const ImageSymbol& symbol);
 
 private:
 	CProcess* _backPtr;
