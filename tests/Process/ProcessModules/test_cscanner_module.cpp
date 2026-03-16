@@ -116,7 +116,8 @@ TEST_CASE_FIXTURE(ScannerTestFixture, "CScannerModule scanForStrings")
 
     auto results = scanner->scanForStrings(range, 5);
 
-    REQUIRE(results.size() >= 2);
+    //Possible non-determinism. Could not reproduce failure consistently.
+    REQUIRE(results.size() >= 2); 
 
     bool foundHello = false;
     bool foundScanner = false;
