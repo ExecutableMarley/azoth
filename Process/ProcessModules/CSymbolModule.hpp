@@ -336,7 +336,7 @@ public:
         return findSymbolByName(handle, symbolName, outSymbol);
     }
 
-    bool findSymbol(const std::string combinedName, ImageSymbol& outSymbol)
+    bool findSymbol(const std::string_view combinedName, ImageSymbol& outSymbol)
     {
         size_t pos = combinedName.find('!');
 
