@@ -181,7 +181,8 @@ InstructionFormatter::InstructionFormatter(Style style)
     // 2. Place Formatter Hook
     ZydisFormatterFunc absHook = PrintAbsAddressHook;
     ZydisFormatterSetHook(&_formatter, ZYDIS_FORMATTER_FUNC_PRINT_ADDRESS_ABS, (const void**)&absHook);
-    default_print_address_absolute = absHook;
+    if (default_print_address_absolute == nullptr)
+        default_print_address_absolute = absHook;
 }
 
 
@@ -248,11 +249,11 @@ bool CDecoderModule::decodeAt(const uint8_t *buffer, size_t size, Address runtim
 
 bool CDecoderModule::decodeAt(const uint8_t *buffer, size_t size, Address runtimeAddr, Instruction &out)
 {
-    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out.context, buffer, size, &out.instr)))
+    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out._context, buffer, size, &out._instr)))
     {
         return false;
     }
-    out.runtimeAddr = runtimeAddr;
+    out._runtimeAddr = runtimeAddr;
     return true;
 }
 
@@ -272,14 +273,14 @@ bool CDecoderModule::decodeNext(DecoderCursor &cursor, CompactInstruction &out)
 
 bool CDecoderModule::decodeNext(DecoderCursor &cursor, Instruction &out)
 {
-    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out.context, cursor.buffer, cursor.remainingSize, &out.instr)))
+    if (ZYAN_FAILED(ZydisDecoderDecodeInstruction(&_decoder, &out._context, cursor.buffer, cursor.remainingSize, &out._instr)))
     {
         return false;
     }
-    out.runtimeAddr = cursor.runtimeAddr;
+    out._runtimeAddr = cursor.runtimeAddr;
 
     // Advance state
-    cursor.advance(out.instr.length);
+    cursor.advance(out._instr.length);
     return true;
 }
 
@@ -295,10 +296,10 @@ bool CDecoderModule::decodeOperands(const CompactInstruction &instr, Instruction
 
 bool CDecoderModule::decodeOperands(const Instruction &instr, InstructionOperands &out)
 {
-    if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr.context, &instr.instr, out.operands, InstructionOperands::MaxOperands)))
+    if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr._context, &instr._instr, out.operands, InstructionOperands::MaxOperands)))
         return false;
 
-    out.count = instr.instr.operand_count;
+    out.count = instr._instr.operand_count;
     return true;
 }
 
@@ -367,13 +368,13 @@ std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const Instruct
 		return os << "<invalid instruction>";
 	}
     ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
-	if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr.context, &instr.instr, operands, ZYDIS_MAX_OPERAND_COUNT)))
+	if (ZYAN_FAILED(ZydisDecoderDecodeOperands(&_decoder, &instr._context, &instr._instr, operands, ZYDIS_MAX_OPERAND_COUNT)))
 	{
 		return os << "<invalid instruction>";
 	}
 	char szBuffer[128];
-	if (!ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instr.instr, operands, ZYDIS_MAX_OPERAND_COUNT, 
-		szBuffer, sizeof(szBuffer), instr.runtimeAddr, (void*)this )))
+	if (!ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instr._instr, operands, ZYDIS_MAX_OPERAND_COUNT, 
+		szBuffer, sizeof(szBuffer), instr._runtimeAddr, (void*)this )))
     {
 		return os << "<invalid instruction>";
 	}
