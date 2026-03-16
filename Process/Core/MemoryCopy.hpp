@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "../Types/Address.hpp"
+#include "../Types/MemoryRange.hpp"
 #include "PointerEndpoint.hpp"
 
 namespace Azoth
@@ -259,6 +260,13 @@ public:
      * @return Vector of translated addresses (0 for invalid pointers).
      */
 	std::vector<uint64_t> translate(const std::vector<void*>& ptrs) const;
+
+    /**
+     * @brief Convert the memory copy to a `MemoryRange`.
+     *
+     * The returned range uses half-open interval semantics: [baseAddress, baseAddress + size).
+     */
+    operator MemoryRange() const { return MemoryRange(_chainAddr, _chainAddr + _size); };
 
 private:
 	CMemoryModule*  _memory;
