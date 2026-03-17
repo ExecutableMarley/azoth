@@ -68,8 +68,8 @@ public:
 	/**
 	 * @brief Construct a process wrapper using a platform backend.
 	 *
-	 * @param platformLink Platform-specific implementation used to
-	 *                     perform all OS-level operations.
+	 * @param platformLink Platform-specific implementation. 
+	 * Ownership of the backend is transferred to the CSystem instance.
 	 *
 	 * @note The CProcess object does not automatically initialize or attach.
 	 * These steps must be performed explicitly.
