@@ -507,6 +507,9 @@ private:
     uint64_t        _addr;
 };
 
+/**
+ * @brief Currently not used
+ */
 class InstructionFormatter
 {
 public:
@@ -558,6 +561,14 @@ private:
 	InstructionFormatter(Style style);
 };
 
+
+/**
+ * @brief Instruction decoder for a target process architecture.
+ * 
+ *  Provides functionality to decode raw instruction bytes into structured
+ *  representations, iterate over instruction streams, resolve operands and
+ *  memory addresses, and format instructions for output.
+ */
 class CDecoderModule
 {
 public:

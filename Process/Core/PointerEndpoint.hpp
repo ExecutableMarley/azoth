@@ -17,6 +17,31 @@ namespace Azoth
 
 class CMemoryModule;
 
+/**
+ * @internal
+ * @brief Node representing a single step in a cached pointer chain.
+ *
+ * PtrChainLink forms a tree-like structure used internally by CMemoryModule
+ * to represent multi-level pointer chains. Each node stores:
+ *
+ * - a pointer to its parent link
+ * - an offset applied to the resolved parent pointer
+ * - a cached pointer value
+ *
+ * The resolved pointer is cached for a configurable duration to avoid
+ * repeated memory reads when the same pointer chain is accessed frequently.
+ *
+ * Nodes maintain a reference count of active children to ensure correct
+ * destruction order. A node may only be destroyed when it has no children.
+ *
+ * Construction is restricted to CMemoryModule which manages the lifetime
+ * and structure of the pointer chain tree.
+ *
+ * Invariants:
+ * - childCount reflects the number of active descendant links.
+ * - parent links must outlive their children.
+ * - destruction asserts that no children remain.
+ */
 class PtrChainLink
 {
 	friend class CMemoryModule;
@@ -41,8 +66,10 @@ protected:
 
 	~PtrChainLink()
     {
+		// Ensure no dependent links still reference this node.
 		assert(_childCount == 0 && "Destroying node with active children");
-        if (_parent)
+        
+		if (_parent)
             _parent->removeChild();
     }
 
@@ -71,7 +98,6 @@ private:
 
 
 /**
- * @class PointerEndpoint
  * @brief Represents the end address of a pointer chain or a fixed absolute address.
  * 
  * Complex endpoints can only be constructed by @ref CMemoryModule, which owns and manages

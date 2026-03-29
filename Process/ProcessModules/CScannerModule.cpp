@@ -176,9 +176,11 @@ std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy,
 // 
 //--------------------------------------------------------
 
-Address CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+
+
+PatternMatch CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern)
 {
-    std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
+    std::shared_ptr<BYTE[]> buffer = std::make_shared<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
     size_t patternSize = pattern.size();
 
@@ -187,7 +189,7 @@ Address CScannerModule::signatureScanEx(const MemoryRange& memRange, const Patte
     {
         if (region.regionSize > bufferSize)
         {
-            buffer = std::make_unique<BYTE[]>(region.regionSize);
+            buffer = std::make_shared<BYTE[]>(region.regionSize);
             bufferSize = region.regionSize;
         }
 
@@ -206,40 +208,23 @@ Address CScannerModule::signatureScanEx(const MemoryRange& memRange, const Patte
                 if (!memRange.contains(ptr))
                     continue;
 
-                //Decode the address from Instruction Operand
-                if (type & 1)
-                {
-                    ptr = _backPtr->getDecoder().decodeAbsoluteMemoryAddress(curByte, regionEnd - curByte, ptr, operatorIndex);
-                    if (ptr == 0)
-                        return 0;
-                }
-                //Calculate relative address
-                if (type & 2)
-                {
-                    ptr -= memRange.startAddr;
-                }
-                return ptr + addressOffset;
+                return PatternMatch(ptr, curByte, buffer, region.regionSize);
             }
         }
     }
-    return 0;
+    return PatternMatch::Invalid();
 }
 
-Address CScannerModule::signatureScanEx(Address start, Address stop, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
-{
-    return signatureScanEx(MemoryRange(start, stop), pattern, type, operatorIndex, addressOffset);
-}
-
-Address CScannerModule::signatureScanEx(const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+PatternMatch CScannerModule::signatureScanEx(const Pattern& pattern)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
-        return signatureScanEx(MemoryRange::max_range_32bit(), pattern, type, operatorIndex, addressOffset);
+        return signatureScanEx(MemoryRange::max_range_32bit(), pattern);
     else
-        return signatureScanEx(MemoryRange::max_range_64bit(), pattern, type, operatorIndex, addressOffset);
+        return signatureScanEx(MemoryRange::max_range_64bit(), pattern);
 }
 
-Address CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+PatternMatch CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern)
 {
     size_t patternSize = pattern.size();
 
@@ -253,30 +238,21 @@ Address CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap, con
             {
                 // Address in remote process
                 uint64_t ptr = memCopy.translate(curByte);
+                size_t offset = curByte - memCopy.getBuffer();
 
-                // Decode the address from Instruction Operand
-                if (type & 1)
-                {
-                    ptr = _backPtr->getDecoder().decodeAbsoluteMemoryAddress(curByte, regionEnd - curByte, ptr, operatorIndex);
-                    if (ptr == 0)
-                        return 0;
-                }
-                // Calculate relative address
-                if (type & 2)
-                {
-                    ptr -= memCopy.getBaseAddress();
-                }
-                return ptr + addressOffset;
+                // Consider: 64 Bytes would probably be enough already
+                std::shared_ptr<BYTE[]> sharedBuffer = std::make_shared<BYTE[]>(memCopy.getSize());
+                std::copy_n(memCopy.getBuffer(), memCopy.getSize(), sharedBuffer.get());
+                return PatternMatch(ptr, sharedBuffer.get() + offset, sharedBuffer, memCopy.getSize());
             }
         }
     }
-
-    return 0;
+    return PatternMatch::Invalid();
 }
 
-Address CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern, short type, int operatorIndex, int addressOffset)
+PatternMatch CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern)
 {
-    return signatureScanEx(std::span{ &memCopy, 1 }, pattern, type, operatorIndex, addressOffset);
+    return signatureScanEx(std::span{ &memCopy, 1 }, pattern);
 }
 
 //--------------------------------------------------------

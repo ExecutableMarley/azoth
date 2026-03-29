@@ -20,8 +20,11 @@ namespace Azoth
 class CProcess;
 
 
-// Lightweight handle referencing a module in the process image cache.
-// Contains the index into the cache and the base address for quick validation.
+/**
+ * @brief Lightweight handle referencing a module in the process image cache.
+ * 
+ * Contains the index into the cache and the base address for quick validation.
+ */
 struct ModuleEntryHandle
 {
     static constexpr size_t npos = static_cast<size_t>(-1);
@@ -35,6 +38,13 @@ struct ModuleEntryHandle
     bool valid() const { return index != npos; }
 };
 
+/**
+ * @brief Provides module and symbol resolution for a target process.
+ *
+ * Maintains a cache of loaded process modules and enables lookup by
+ * address or name. Supports resolving symbols within modules, including
+ * name-based and address-based queries.
+ */
 class CSymbolModule
 {
 public:
@@ -143,7 +153,7 @@ public:
         return false;
     }
 
-    bool findModuleByName(std::string_view moduleName, ProcessImage& outImage)
+    bool findModuleByName(const std::string_view moduleName, ProcessImage& outImage)
     {
         auto it = std::find_if(_processImageCache.begin(), _processImageCache.end(), [&moduleName](const ModuleSymbolEntry& mod) {
             return mod.image.name == moduleName;
@@ -178,7 +188,7 @@ public:
         return ModuleEntryHandle();
     }
 
-    ModuleEntryHandle getModuleHandle(std::string moduleName)
+    ModuleEntryHandle getModuleHandle(const std::string_view moduleName)
     {
         auto it = std::find_if(_processImageCache.begin(), _processImageCache.end(), [&moduleName](const ModuleSymbolEntry& mod) {
             return mod.image.name == moduleName;
@@ -232,7 +242,7 @@ private:
             return false;
         }
     
-        bool getSymbolByName(const std::string& name, ImageSymbol& outSymbol)
+        bool getSymbolByName(const std::string_view name, ImageSymbol& outSymbol)
         {
             //Todo: O(n)
             if (!isParsed) return false;
@@ -304,7 +314,7 @@ public:
         }
     }
 
-    bool findSymbolByName(const ModuleEntryHandle& handle, const std::string& moduleName, ImageSymbol& outSymbol)
+    bool findSymbolByName(const ModuleEntryHandle& handle, const std::string_view moduleName, ImageSymbol& outSymbol)
     {
         ModuleSymbolEntry* entry = getModuleFromHandle(handle);
         if (!entry)
@@ -329,7 +339,7 @@ public:
         }
     }
 
-    bool findSymbolByName(const std::string moduleName, const std::string& symbolName, ImageSymbol& outSymbol)
+    bool findSymbolByName(const std::string_view moduleName, const std::string_view symbolName, ImageSymbol& outSymbol)
     {
         ModuleEntryHandle handle = getModuleHandle(moduleName);
 
@@ -345,7 +355,7 @@ public:
         std::string_view mod = combinedName.substr(0, pos);
         std::string_view sym = combinedName.substr(pos + 1);
 
-        return findSymbolByName(std::string(mod), std::string(sym), outSymbol);
+        return findSymbolByName(mod, sym, outSymbol);
     }
 
 private:

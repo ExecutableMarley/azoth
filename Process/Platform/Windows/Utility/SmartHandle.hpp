@@ -15,7 +15,11 @@
 namespace Azoth
 {
 
-
+/**
+ * @internal
+ * @brief 
+ * 
+ */
 class SmartHandle 
 {
 public:

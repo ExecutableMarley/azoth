@@ -25,6 +25,10 @@ namespace Azoth
 
 //Todo: Consider moving logic to helper files
 
+/**
+ * @internal
+ * @brief Default Windows Implementation
+ */
 class WinapiLink : public IPlatformLink
 {
 public:
