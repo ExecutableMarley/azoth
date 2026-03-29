@@ -20,8 +20,11 @@ namespace Azoth
 class CProcess;
 
 
-// Lightweight handle referencing a module in the process image cache.
-// Contains the index into the cache and the base address for quick validation.
+/**
+ * @brief Lightweight handle referencing a module in the process image cache.
+ * 
+ * Contains the index into the cache and the base address for quick validation.
+ */
 struct ModuleEntryHandle
 {
     static constexpr size_t npos = static_cast<size_t>(-1);
@@ -35,6 +38,13 @@ struct ModuleEntryHandle
     bool valid() const { return index != npos; }
 };
 
+/**
+ * @brief Provides module and symbol resolution for a target process.
+ *
+ * Maintains a cache of loaded process modules and enables lookup by
+ * address or name. Supports resolving symbols within modules, including
+ * name-based and address-based queries.
+ */
 class CSymbolModule
 {
 public:

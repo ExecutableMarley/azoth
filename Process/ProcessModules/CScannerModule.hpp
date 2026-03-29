@@ -23,6 +23,9 @@ namespace Azoth
 class CProcess;
 class CMemoryModule;
 
+/**
+ * @brief Represents a pattern scan match with utilities for address resolution.
+ */
 class PatternMatch
 {
 	/*

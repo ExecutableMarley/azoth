@@ -10,7 +10,10 @@
 namespace Azoth
 {
 
-
+/**
+ * @internal
+ * @brief Copy-Paste template
+ */
 class TemplateToRename : IPlatformLink
 {
 public:

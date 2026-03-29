@@ -546,7 +546,10 @@ PlatformErrorState retrieveProcessPath(uint32_t pid, std::string& outProcessPath
 
 //Todo: This belongs somewhere else
 
-//Small helper class to auto unload modules
+/**
+ * @internal
+ * @brief Small helper class to auto unload modules
+ */
 class ScopedModule
 {
 public:
