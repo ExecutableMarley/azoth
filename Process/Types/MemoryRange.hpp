@@ -5,14 +5,14 @@
 
 #pragma once
 
+#include "Address.hpp"
+
 #include <stdint.h>
 #include <algorithm>
 #include <ostream>
 #include <sstream>
 #include <iomanip>
 #include <cassert>
-
-#include "Address.hpp"
 
 #undef min
 #undef max
