@@ -122,6 +122,7 @@ struct MemoryRegion
 	operator MemoryRange() const { return MemoryRange(baseAddress, baseAddress + regionSize); };
 };
 
+/** @brief Writes a human-readable description of a MemoryRegion to a stream. */
 inline std::ostream& operator<<(std::ostream& os, const MemoryRegion& region)
 {
     if (!region.valid())
@@ -143,6 +144,7 @@ inline std::ostream& operator<<(std::ostream& os, const MemoryRegion& region)
     return os;
 }
 
+/** @brief Returns a human-readable string representation of a MemoryRegion. */
 inline std::string to_string(const MemoryRegion& region)
 {
     std::ostringstream oss;
@@ -150,10 +152,16 @@ inline std::string to_string(const MemoryRegion& region)
     return oss.str();
 }
 
+/**
+ * Predicate used to filter memory regions.
+ *
+ * The function should return `true` if the given MemoryRegion should be
+ * included in an operation, or `false` if it should be skipped.
+ */
 using MemoryRegionFilter = std::function<bool(const MemoryRegion&)>;
 
 
-/* @class ProtectionFilter
+/** 
  * @brief Fine-grained filter for matching memory protection states.
  *
  * ProtectionFilter allows expressing requirements for individual protection
@@ -166,6 +174,9 @@ using MemoryRegionFilter = std::function<bool(const MemoryRegion&)>;
 class ProtectionFilter
 {
 public:
+    /**
+     * @brief Rule applied to a single protection flag.
+     */
     enum ProtectionState : uint8_t
     {
         Ignore,
@@ -173,15 +184,25 @@ public:
         Forbid
     };
 
+    /// Rule applied to the read permission.
     ProtectionState read    = ProtectionState::Ignore;
+    /// Rule applied to the write permission.
     ProtectionState write   = ProtectionState::Ignore;
+    /// Rule applied to the execute permission.
     ProtectionState execute = ProtectionState::Ignore;
 
+    /// Constructs a filter that ignores all permissions.
     constexpr ProtectionFilter() = default;
 
+    /// Constructs a filter with explicit rules for read, write and execute.
     constexpr ProtectionFilter(ProtectionState r, ProtectionState w, ProtectionState e)
         : read(r), write(w), execute(e) {}
 
+    /**
+     * @brief Creates a filter requiring an exact protection match.
+     *
+     * All permissions present in `prot` are required and all others are forbidden.
+     */
     static constexpr ProtectionFilter exact(EMemoryProtection prot)
     {
         return {
@@ -191,6 +212,11 @@ public:
         };
     }
 
+    /**
+     * @brief Creates a filter that requires the specified permissions.
+     *
+     * Permissions not included in `prot` are ignored.
+     */
     static constexpr ProtectionFilter require(EMemoryProtection prot)
     {
         return {
@@ -200,6 +226,17 @@ public:
         };
     }
 
+    /**
+     * @brief Creates a filter from a simple integer mask.
+     *
+     * Each parameter controls the rule for a permission:
+     *
+     * - `>0` → Require
+     * - `<0` → Forbid
+     * - `0`  → Ignore
+     *
+     * Order: (read, write, execute).
+     */
     static constexpr ProtectionFilter mask(int8_t r, int8_t w, int8_t e)
     {
         auto conv = [](int8_t v) constexpr -> ProtectionState {
@@ -210,13 +247,22 @@ public:
         return { conv(r), conv(w), conv(e) };
     }
 
+    /// Require the region to be readable.
     constexpr ProtectionFilter& requireRead()  { read    = ProtectionState::Require; return *this; }
+    /// Require the region to NOT be readable.
     constexpr ProtectionFilter& forbidRead()   { read    = ProtectionState::Forbid;  return *this; }
+    /// Require the region to be writable.
     constexpr ProtectionFilter& requireWrite() { write   = ProtectionState::Require; return *this; }
+    /// Require the region to NOT be writable.
     constexpr ProtectionFilter& forbidWrite()  { write   = ProtectionState::Forbid;  return *this; }
+    /// Require the region to be executable.
     constexpr ProtectionFilter& requireExec()  { execute = ProtectionState::Require; return *this; }
+    /// Require the region to NOT be executable.
     constexpr ProtectionFilter& forbidExec()   { execute = ProtectionState::Forbid;  return *this; }
 
+    /**
+     * @brief Checks a single permission rule against an actual protection mask.
+     */
     constexpr bool checkProtection(ProtectionState filterState, EMemoryProtection actual, EMemoryProtection flag) const
     {
         bool isPresent = (actual & flag) != EMemoryProtection::None;
@@ -232,6 +278,9 @@ public:
         return true;
     }
 
+    /**
+     * @brief Tests whether a protection mask satisfies this filter.
+     */
     constexpr bool matchesProtection(EMemoryProtection actual) const
     {
         if (!checkProtection(read, actual, EMemoryProtection::Read))
@@ -252,6 +301,12 @@ public:
         return true;
     }
 
+    /**
+     * @brief Predicate operator for MemoryRegion filtering.
+     *
+     * Allows using ProtectionFilter directly with algorithms expecting a
+     * region predicate.
+     */
     constexpr bool operator()(const MemoryRegion& r) const
     {
         return matchesProtection(r.protection);
