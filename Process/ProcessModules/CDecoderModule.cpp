@@ -151,8 +151,9 @@ ZyanStatus PrintAbsAddressHook(
         }
         else if (decoder->resolveModule(address, image, offset))
         {
-            std::string text = image.name + "+" + std::to_string(offset);
-            return ZydisStringAppendStringView(str, text);
+            std::string text = image.name + "+";// + std::to_string(offset);
+            ZydisStringAppendStringView(str, text);
+            return ZydisStringAppendHex(str, offset, true);
         }
     }
 
