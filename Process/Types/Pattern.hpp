@@ -35,6 +35,14 @@ public:
 	Pattern() = default;
 
 	/**
+	 * @brief Constructs a Pattern object with the specified byte pattern and mask.
+	 * 
+	 * @param bytes A vector of bytes representing the pattern to match.
+	 * @param mask A vector of bytes serving as a mask.
+	 */
+	Pattern(std::vector<uint8_t> bytes, std::vector<uint8_t> mask) : bytes(bytes), mask(mask) {}
+
+	/**
      * @brief Construct a pattern from a combined signature string.
 	 * 
 	 * The string should consist of hexadecimal byte value and wildcards ('?'),
@@ -89,6 +97,15 @@ public:
 	bool empty() const noexcept
 	{
 		return bytes.empty();
+	}
+
+	void trimTrailingWildcards() noexcept
+	{
+		while (!mask.empty() && mask.back() == 0)
+		{
+			mask.pop_back();
+			bytes.pop_back();
+		}
 	}
 
 	/**
@@ -167,7 +184,7 @@ private:
 		this->bytes.clear();
 		this->mask.clear();
 
-		auto cleanedCombo = cleanPattern(combo);
+		auto cleanedCombo = cleanComboPattern(combo);
 		if (cleanedCombo.empty())
 		{
 			return;
@@ -220,7 +237,7 @@ private:
 		}
 	}
 
-	std::string cleanPattern(std::string source)
+	static std::string cleanComboPattern(std::string source)
 	{
 		std::regex space_re(R"(\s+)");
 		std::regex quest_re(R"(\?+)");
