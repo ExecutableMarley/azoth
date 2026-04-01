@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace Azoth
 {
@@ -14,7 +14,7 @@ namespace Azoth
 /**
  * @brief Represents the privilege level of a process.
  */
-enum class EProcessPrivilegeLevel : uint8_t
+enum class EProcessPrivilegeLevel : std::uint8_t
 {
 	Unknown = 0,
 	StandardUser,

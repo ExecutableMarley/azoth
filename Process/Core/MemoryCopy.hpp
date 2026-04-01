@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 #include <memory>
 
@@ -46,7 +46,7 @@ protected:
      */
     MemoryCopy(CMemoryModule* memory);
 
-	MemoryCopy(CMemoryModule* memory, uint64_t addr, size_t size);
+	MemoryCopy(CMemoryModule* memory, std::uint64_t addr, size_t size);
 
 	MemoryCopy(CMemoryModule* memory, PointerEndpoint chainAddr, size_t size);
 
@@ -67,7 +67,7 @@ public:
      *
      * @param[in] addr Absolute address in the target process.
      */
-	void setAddress(uint64_t addr);
+	void setAddress(std::uint64_t addr);
 
 	/**
      * @brief Set the memory source using a pointer-chain endpoint.
@@ -85,7 +85,7 @@ public:
      * @tparam T Returned integer type (defaults to uint64_t).
      * @return Base address in the target process.
      */
-	template<typename T = uint64_t>
+	template<typename T = std::uint64_t>
 	T getBaseAddress() const
 	{
 		return _chainAddr.get();

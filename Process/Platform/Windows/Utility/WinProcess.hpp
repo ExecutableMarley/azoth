@@ -8,7 +8,7 @@
 #ifdef _WIN32
 
 #include <string>
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 
 #include "../../EPlatformError.hpp"
@@ -26,41 +26,41 @@ namespace Azoth
 
 class ProcessImage;
 
-PlatformErrorState retrieveProcessIDByName(const std::string& procName, uint32_t& out_process_id);
+PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::uint32_t& out_process_id);
 
-PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<uint32_t>& out_process_ids);
+PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<std::uint32_t>& out_process_ids);
 
-PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id);
+PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, std::uint32_t& out_process_id);
 
-PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& out_process_ids);
+PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<std::uint32_t>& out_process_ids);
 
-PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, uint32_t& out_process_id);
+PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, std::uint32_t& out_process_id);
 
 //
 
-PlatformErrorState retrieveProcessMainImage(uint32_t pid, ProcessImage& procImage);
+PlatformErrorState retrieveProcessMainImage(std::uint32_t pid, ProcessImage& procImage);
 
-PlatformErrorState retrieveProcessImage(uint32_t pid, const std::string& imageName, ProcessImage& procImage);
+PlatformErrorState retrieveProcessImage(std::uint32_t pid, const std::string& imageName, ProcessImage& procImage);
 
-PlatformErrorState retrieveAllProcessImages(uint32_t pid, std::vector<ProcessImage>& procImages);
+PlatformErrorState retrieveAllProcessImages(std::uint32_t pid, std::vector<ProcessImage>& procImages);
 
 //
 
 PlatformErrorState retrieveProcessPrivilegeLevel(HANDLE processHandle, EProcessPrivilegeLevel& outLevel);
 
-PlatformErrorState retrieveProcessPrivilegeLevel(uint32_t pid, EProcessPrivilegeLevel& outLevel);
+PlatformErrorState retrieveProcessPrivilegeLevel(std::uint32_t pid, EProcessPrivilegeLevel& outLevel);
 
 PlatformErrorState retrieveProcessArchitecture(HANDLE processHandle, EProcessArchitecture& outArch);
 
-PlatformErrorState retrieveProcessArchitecture(uint32_t pid, EProcessArchitecture& outArch);
+PlatformErrorState retrieveProcessArchitecture(std::uint32_t pid, EProcessArchitecture& outArch);
 
 PlatformErrorState retrieveProcessName(HANDLE processHandle, std::string& outProcessName);
 
-PlatformErrorState retrieveProcessName(uint32_t pid, std::string& outProcessName);
+PlatformErrorState retrieveProcessName(std::uint32_t pid, std::string& outProcessName);
 
 PlatformErrorState retrieveProcessPath(HANDLE processHandle, std::string& outProcessPath);
 
-PlatformErrorState retrieveProcessPath(uint32_t pid, std::string& outProcessPath);
+PlatformErrorState retrieveProcessPath(std::uint32_t pid, std::string& outProcessPath);
 
 //
 

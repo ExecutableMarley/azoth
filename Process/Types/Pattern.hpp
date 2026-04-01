@@ -25,8 +25,8 @@ namespace Azoth
 class Pattern
 {
 public:
-	std::vector<uint8_t> bytes;
-	std::vector<uint8_t> mask;
+	std::vector<std::uint8_t> bytes;
+	std::vector<std::uint8_t> mask;
 
 public:
 	/**
@@ -40,7 +40,7 @@ public:
 	 * @param bytes A vector of bytes representing the pattern to match.
 	 * @param mask A vector of bytes serving as a mask.
 	 */
-	Pattern(std::vector<uint8_t> bytes, std::vector<uint8_t> mask) : bytes(bytes), mask(mask) {}
+	Pattern(std::vector<std::uint8_t> bytes, std::vector<std::uint8_t> mask) : bytes(bytes), mask(mask) {}
 
 	/**
      * @brief Construct a pattern from a combined signature string.

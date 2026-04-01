@@ -152,7 +152,7 @@ public:
         return MemoryRange(start, stop);
     }
 
-    uint64_t toRelative(Address absolute) const
+    std::uint64_t toRelative(Address absolute) const
     {
         //Consider int64_t
         //Consider special rel Address type

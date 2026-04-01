@@ -11,7 +11,7 @@
 #include "../Types/EMemoryState.hpp"
 #include "../Types/EMemoryType.hpp"
 
-#include <stdint.h>
+#include <cstdint>
 #include <functional>
 #include <ostream>
 #include <sstream>
