@@ -9,6 +9,9 @@
 
 #include "../IPlatformLink.hpp"
 
+#include "Utility/LinuxProcess.hpp"
+#include "Utility/PTrace.hpp"
+
 #include <limits.h>
 #include <unistd.h>
 #include <sys/uio.h>
@@ -26,7 +29,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <chrono>
-#include "Utility/LinuxProcess.hpp"
+
 
 //Todo: Renaming to Unix naming scheme
 
@@ -178,6 +181,16 @@ public:
             processImages.push_back(img);
         }
         return setError(EPlatformError::Success);
+    }
+
+    bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const
+    {
+        return setError(EPlatformError::NotImplemented);
+    }
+
+	bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const
+    {
+        return setError(EPlatformError::NotImplemented);
     }
 
 	//=== Process Query ===//
@@ -389,20 +402,54 @@ public:
 
 	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) override
     {
+        MemoryRegion region;
+        if (!queryMemory(addr, region))
+            return false;
+
         //Todo: ptrace
-        return setError(EPlatformError::NotImplemented);
+        PtraceSession session(static_cast<pid_t>(this->_procID));
+        if (!session.attach())
+            return setError(EPlatformError::InternalError, (uint64_t)errno);
+
+        auto result = session.remoteSyscall(SYS_mprotect, addr, size, toProt(newProtect));
+        if (result.error == 0)
+        {
+            if (oldProtect) *oldProtect = region.protection;
+            return setError(EPlatformError::Success);
+        }
+
+        return setError(EPlatformError::InternalError, (uint64_t)result.error);
     }
 	
 	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) override
     {
-        //Todo: ptrace
-        return setError(EPlatformError::NotImplemented);
+        PtraceSession session(static_cast<pid_t>(this->_procID));
+        if (!session.attach())
+            return setError(EPlatformError::InternalError, (uint64_t)errno);
+        
+        auto result = session.remoteSyscall(SYS_mmap, addr, size, toProt(protection), MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (result.error == 0)
+        {
+            setError(EPlatformError::Success);
+            return static_cast<uint64_t>(result.value);
+        }
+
+        return setError(EPlatformError::InternalError, (uint64_t)result.error);
     }
 	
 	bool virtualFree(uint64_t addr) override
     {
-        //Todo: ptrace
-        return setError(EPlatformError::NotImplemented);
+        PtraceSession session(static_cast<pid_t>(this->_procID));
+        if (!session.attach())
+            return setError(EPlatformError::InternalError, (uint64_t)errno);
+        
+        auto result = session.remoteSyscall(SYS_munmap, addr, 0);
+        if (result.error == 0)
+        {
+            return setError(EPlatformError::Success);
+        }
+        
+        return setError(EPlatformError::InternalError, (uint64_t)result.error);
     }
 
 	//=== Threads ===//
