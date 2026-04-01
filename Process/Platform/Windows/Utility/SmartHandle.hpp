@@ -5,6 +5,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 #include <utility>
 #include <memory>
 
@@ -89,3 +91,6 @@ inline SmartHandle openProcessHandle(DWORD pid, DWORD desiredAccess = PROCESS_QU
 
 
 }
+
+
+#endif

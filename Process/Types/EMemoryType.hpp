@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace Azoth
 {
@@ -19,7 +19,7 @@ namespace Azoth
  *
  * The numeric values intentionally match Windows MEM_* constants
  */
-enum class EMemoryType : uint32_t
+enum class EMemoryType : std::uint32_t
 {
     Unknown = 0,
     Private = 0x20000,   // MEM_PRIVATE

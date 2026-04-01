@@ -6,7 +6,7 @@
 #pragma once
 
 #include <iomanip>
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <ostream>
 #include <sstream>

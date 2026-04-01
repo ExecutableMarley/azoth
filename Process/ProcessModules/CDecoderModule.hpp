@@ -13,6 +13,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <span>
 #include <optional>
 #include <ostream>
 #include <sstream>
@@ -317,6 +318,34 @@ public:
 		return Address::null();
 	}
 
+	//Todo: More abstract
+	void writeToPattern(const uint8_t *instrBytes, std::span<uint8_t> bytes, std::span<uint8_t> mask) const
+	{
+		const auto &in = raw();
+
+		// default: all stable
+		std::fill(mask.begin(), mask.end(), 0xFF);
+
+		auto applyRange = [&](uint8_t start, uint8_t sizeBits)
+		{
+			uint8_t end = start + sizeBits / 8;
+			std::fill(mask.begin() + start, mask.begin() + end, 0x00);
+		};
+
+		// displacement
+		if (in.raw.disp.size > 0)
+			applyRange(in.raw.disp.offset, in.raw.disp.size);
+
+		// immediates
+		for (int j = 0; j < 2; j++)
+			if (in.raw.imm[j].size > 0)
+				applyRange(in.raw.imm[j].offset, in.raw.imm[j].size);
+
+		// write bytes
+		for (size_t i = 0; i < bytes.size(); i++)
+			bytes[i] = mask[i] ? instrBytes[i] : 0x00;
+	}
+
 private:
 	Address _runtimeAddr = 0;
 	ZydisDecodedInstruction _instr{};
@@ -403,6 +432,7 @@ public:
 	const uint8_t* buffer;
 	size_t remainingSize;
 	uint64_t runtimeAddr;
+	//Consider: Track current offset?
 
 	/**
 	 * @brief Returns the runtime address of the current position.

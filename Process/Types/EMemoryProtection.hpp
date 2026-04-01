@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <ostream>
 
 namespace Azoth
@@ -16,7 +16,7 @@ namespace Azoth
  *
  * The enum is intended to be used as a bitmask.
  */
-enum class EMemoryProtection : uint32_t
+enum class EMemoryProtection : std::uint32_t
 {
     None      = 0,
     Read      = 1 << 0,
@@ -31,17 +31,17 @@ enum class EMemoryProtection : uint32_t
 
 constexpr EMemoryProtection operator|(EMemoryProtection a, EMemoryProtection b)
 {
-    return static_cast<EMemoryProtection>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    return static_cast<EMemoryProtection>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
 }
 
 constexpr EMemoryProtection operator&(EMemoryProtection a, EMemoryProtection b)
 {
-    return static_cast<EMemoryProtection>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+    return static_cast<EMemoryProtection>(static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b));
 }
 
 constexpr EMemoryProtection operator~(EMemoryProtection a)
 {
-    return static_cast<EMemoryProtection>(~static_cast<uint32_t>(a));
+    return static_cast<EMemoryProtection>(~static_cast<std::uint32_t>(a));
 }
 
 constexpr EMemoryProtection& operator|=(EMemoryProtection& a, EMemoryProtection b)
@@ -58,7 +58,7 @@ constexpr EMemoryProtection& operator&=(EMemoryProtection& a, EMemoryProtection 
 
 constexpr bool hasFlag(EMemoryProtection value, EMemoryProtection flag)
 {
-    return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) == static_cast<uint32_t>(flag);
+    return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) == static_cast<std::uint32_t>(flag);
 }
 
 constexpr std::string_view to_string(EMemoryProtection flags)

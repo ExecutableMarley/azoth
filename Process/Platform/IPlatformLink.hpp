@@ -5,12 +5,13 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <memory>
 
 #include "EPlatformError.hpp"
+#include "../Types/Address.hpp"
 #include "../Types/EProcessArchitecture.hpp"
 #include "../Types/EProcessPrivilegeLevel.hpp"
 #include "../Core/ProcessImage.hpp"

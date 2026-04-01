@@ -54,7 +54,7 @@ Address PtrChainLink::get(CMemoryModule& mem, std::chrono::milliseconds cacheDur
 
 Address PointerEndpoint::get(std::chrono::milliseconds cacheDuration) const
 {
-    assert((bool)_mem != (bool)_previous);
+    assert((bool)_mem == (bool)_previous);
     if (_mem && _previous)
     {
         return _previous->get(*_mem, cacheDuration) + _addOffset;

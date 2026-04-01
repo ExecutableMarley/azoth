@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace Azoth
 {
@@ -14,7 +14,7 @@ namespace Azoth
 /**
  * @brief Represents the CPU instruction set architecture of a process.
  */
-enum class EProcessArchitecture : uint8_t
+enum class EProcessArchitecture : std::uint8_t
 {
 	Unknown = 0,
 	x86,

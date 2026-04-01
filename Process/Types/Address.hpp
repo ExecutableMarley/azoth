@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <stdint.h>
 #include <cstdint>
 #include <ostream>
 #include <sstream>
@@ -15,6 +14,10 @@
 namespace Azoth
 {
 
+using std::uint64_t;
+using std::uint32_t;
+using std::uint16_t;
+using std::uint8_t;
 
 /**
  * @brief Strongly-typed wrapper for a virtual memory address.
@@ -24,7 +27,7 @@ namespace Azoth
 class Address
 {
 public:
-	using value_type = uint64_t;
+	using value_type = std::uint64_t;
 
 private:
 	value_type value = 0;

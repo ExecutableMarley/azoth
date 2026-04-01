@@ -5,6 +5,8 @@
 
 #include "WinProcess.hpp"
 
+#ifdef _WIN32
+
 #include <vector>
 #include <iostream>
 
@@ -844,3 +846,6 @@ PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, std::vec
 
 
 }
+
+
+#endif

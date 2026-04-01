@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <string_view>
 #include <ostream>
 
@@ -18,7 +18,7 @@ namespace Azoth
  *
  * @note These values are stable and backend-independent.
  */
-enum class EPlatformError : uint32_t
+enum class EPlatformError : std::uint32_t
 {
 	Success = 0,
 	NotImplemented,    // Platform backend does not implement this feature
@@ -61,7 +61,7 @@ struct PlatformErrorState
      * - Windows: GetLastError(), NTSTATUS
      * - Linux: errno
 	 */
-	uint64_t osError       = 0;
+	std::uint64_t osError       = 0;
 };
 
 

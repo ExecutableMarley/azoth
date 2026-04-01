@@ -5,6 +5,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 #include "../../IPlatformLink.hpp"
 #undef UNICODE
 #undef _UNICODE
@@ -113,3 +115,5 @@ inline MemoryRegion fromWinBasicInformation(const MEMORY_BASIC_INFORMATION& mbi)
 
 
 }
+
+#endif
