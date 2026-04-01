@@ -183,12 +183,12 @@ public:
         return setError(EPlatformError::Success);
     }
 
-    bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const
+    bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
     {
         return setError(EPlatformError::NotImplemented);
     }
 
-	bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const
+	bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
     {
         return setError(EPlatformError::NotImplemented);
     }
