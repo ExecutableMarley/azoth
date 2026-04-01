@@ -5,6 +5,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 #include <string>
 #include <stdint.h>
 #include <vector>
@@ -71,3 +73,5 @@ PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, HMODULE 
 PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols);
 
 }
+
+#endif

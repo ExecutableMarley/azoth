@@ -6,6 +6,8 @@
 #include "LinuxProcess.hpp"
 #include "../LinuxApiLink.hpp"
 
+#if __linux__
+
 namespace Azoth
 {
 
@@ -228,3 +230,6 @@ bool readStartTime(pid_t pid, uint64_t& startTime)
 
 
 }
+
+
+#endif

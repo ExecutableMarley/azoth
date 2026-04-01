@@ -5,6 +5,8 @@
 
 #pragma once
 
+#if __linux__
+
 #include <string>
 #include <sstream>
 #include <stdint.h>
@@ -38,3 +40,6 @@ bool getMapsWriteTime(uint32_t pid, std::filesystem::file_time_type& outTime);
 
 
 }
+
+
+#endif

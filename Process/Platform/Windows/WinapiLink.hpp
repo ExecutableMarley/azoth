@@ -5,6 +5,8 @@
 
 #pragma once
 
+#ifdef _WIN32
+
 #include "../IPlatformLink.hpp"
 
 #include "Utility/WinTypes.hpp"
@@ -365,3 +367,6 @@ protected:
 
 
 }
+
+
+#endif
