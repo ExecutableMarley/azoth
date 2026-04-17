@@ -8,6 +8,7 @@
 #include "Types/EProcessArchitecture.hpp"
 #include "Platform/IPlatformLink.hpp"
 
+#include <cstdint>
 #include <string>
 #include <chrono>
 #include <thread>
@@ -26,7 +27,7 @@ namespace Azoth
 struct ProcessInfo
 {
     /// Process identifier assigned by the operating system.
-    uint32_t pid;
+    std::uint32_t pid;
     /// Executable name of the process (without path).
     std::string name;
     /// Full filesystem path to the executable.
