@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <chrono>
 
 #include "EPlatformError.hpp"
 #include "../Types/Address.hpp"
@@ -99,20 +100,50 @@ public:
 
 protected:
 
-	//Currently not used and experimental. Potentially a good way to keep track if an process is alive.
-	bool handleFailure(EPlatformError platformError, uint64_t osError = 0, bool exitCheck = true) const
+	/**
+	 * @brief Handles a platform operation result and optionally checks for process termination.
+	 *
+	 * This function is a convenience wrapper around setError() that records the error state
+	 * and can additionally detect whether the target process has terminated and set the 
+	 * internal "dead" state. To avoid excessive system calls, isAlive() checks are throttled
+	 * and only performed if at least ALIVE_CHECK_INTERVAL milliseconds have elapsed since
+	 * the last check.
+	 *
+	 * @param platformError The error code from the platform operation.
+	 * @param osError       Optional OS-specific error detail (default: 0).
+	 * @param exitCheck     If true, performs a throttled process alive check on failure (default: false).
+	 *
+	 * @return The result of setError(); true if platformError == Success, false otherwise.
+	 */
+	bool handleFailure(EPlatformError platformError, uint64_t osError = 0, bool exitCheck = false) const
 	{
 		if (platformError == EPlatformError::Success) return setError(platformError, osError);
 
 		if (exitCheck && !this->_isDead)
 		{
-			bool isAliveResult;
-			if (isAlive(isAliveResult) && !isAliveResult)
+			auto now = std::chrono::steady_clock::now();
+			if ((now - _lastAliveCheck) >= ALIVE_CHECK_INTERVAL)
 			{
-				_isDead = true;
+				_lastAliveCheck = now;
+				bool isAliveResult;
+				if (isAlive(isAliveResult) && !isAliveResult)
+				{
+					_isDead = true;
+				}
 			}
 		}
 		return setError(platformError, osError);
+	}
+
+public:
+	void setProcessToAlive() //Todo: This should get called automatically at some point
+	{
+		this->_isDead = false;
+	}
+
+	bool hasDied() const
+	{
+		return this->_isDead;
 	}
 
 public:
@@ -137,6 +168,8 @@ public:
 
 private:
 	mutable bool _isDead = true;
+	mutable std::chrono::steady_clock::time_point _lastAliveCheck = std::chrono::steady_clock::time_point::min();
+	static constexpr std::chrono::milliseconds ALIVE_CHECK_INTERVAL{500};
 
 	inline static thread_local PlatformErrorState _lastError;
 public:
