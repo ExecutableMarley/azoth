@@ -8,6 +8,10 @@
 
 #if __linux__
 
+
+#include <elf.h>
+
+
 namespace Azoth
 {
 
@@ -229,7 +233,222 @@ bool readStartTime(pid_t pid, uint64_t& startTime)
 }
 
 
+
+class BinaryFile
+{
+public:
+    BinaryFile(const std::string& path)
+    {
+        file.open(path, std::ios::binary);
+    }
+
+    bool valid() const { return file.is_open(); }
+
+    template<typename T>
+    bool read(uint64_t offset, T& out)
+    {
+        file.seekg(offset);
+        return (bool)file.read(reinterpret_cast<char*>(&out), sizeof(T));
+    }
+
+    bool readBuffer(uint64_t offset, std::vector<char>& buffer, size_t size)
+    {
+        buffer.resize(size);
+        file.seekg(offset);
+        return (bool)file.read(buffer.data(), size);
+    }
+
+private:
+    std::ifstream file;
+};
+
+// Todo: Template for 32/64 bit
+
+struct ElfHeader
+{
+    uint8_t  ident[16];
+    uint16_t type;
+    uint16_t machine;
+    uint32_t version;
+    uint64_t entry;
+    uint64_t phoff;
+    uint64_t shoff;
+    uint32_t flags;
+    uint16_t ehsize;
+    uint16_t phentsize;
+    uint16_t phnum;
+    uint16_t shentsize;
+    uint16_t shnum;
+    uint16_t shstrndx;
+};
+
+struct SectionHeader
+{
+    uint32_t name;
+    uint32_t type;
+    uint64_t flags;
+    uint64_t addr;
+    uint64_t offset;
+    uint64_t size;
+    uint32_t link;
+    uint32_t info;
+    uint64_t addralign;
+    uint64_t entsize;
+};
+
+struct Symbol
+{
+    uint32_t name;
+    uint8_t  info;
+    uint8_t  other;
+    uint16_t shndx;
+    uint64_t value;
+    uint64_t size;
+};
+
+class ElfFile
+{
+public:
+    explicit ElfFile(const std::string& path)
+        : file(path)
+    {}
+
+    bool parse() {
+        if (!file.valid()) return false;
+
+        if (!file.read(0, header)) return false;
+
+        // Basic validation
+        if (header.ident[0] != 0x7F || header.ident[1] != 'E' ||
+            header.ident[2] != 'L'  || header.ident[3] != 'F')
+            return false;
+
+        return loadSectionHeaders();
+    }
+
+    struct ParsedSymbol {
+        std::string name;
+        uint64_t value;
+        uint8_t info;
+        uint16_t shndx;
+    };
+
+    std::vector<ParsedSymbol> getSymbols(bool includeSymtab = false) {
+        std::vector<ParsedSymbol> result;
+
+        extractSymbols(".dynsym", result);
+
+        if (includeSymtab)
+            extractSymbols(".symtab", result);
+
+        return result;
+    }
+
+private:
+    BinaryFile file;
+    ElfHeader header{};
+    std::vector<SectionHeader> sections;
+    std::vector<char> shstrtab;
+
+    bool loadSectionHeaders()
+    {
+        sections.resize(header.shnum);
+
+        for (uint16_t i = 0; i < header.shnum; ++i)
+        {
+            file.read(header.shoff + i * sizeof(SectionHeader), sections[i]);
+        }
+
+        // Load section name table
+        const auto& shstr = sections[header.shstrndx];
+        return file.readBuffer(shstr.offset, shstrtab, shstr.size);
+    }
+
+    const SectionHeader* findSection(const std::string& name) const
+    {
+        for (const auto& sec : sections)
+        {
+            const char* secName = &shstrtab[sec.name];
+            if (name == secName)
+                return &sec;
+        }
+        return nullptr;
+    }
+
+    void extractSymbols(const std::string& symName,
+                        std::vector<ParsedSymbol>& out)
+    {
+        const SectionHeader* symSec = findSection(symName);
+        if (!symSec) return;
+
+        const SectionHeader& strSec = sections[symSec->link];
+
+        std::vector<char> strtab;
+        file.readBuffer(strSec.offset, strtab, strSec.size);
+
+        size_t count = symSec->size / symSec->entsize;
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            Symbol sym{};
+            file.read(symSec->offset + i * sizeof(Symbol), sym);
+
+            if (sym.name == 0 || sym.shndx == 0)
+                continue;
+
+            if (sym.name >= strtab.size())
+                continue;
+
+            const char* name = &strtab[sym.name];
+
+            if (!name || !*name)
+                continue;
+
+            out.push_back({
+                std::string(name),
+                sym.value,
+                sym.info,
+                sym.shndx
+            });
+        }
+    }
+};
+
+PlatformErrorState retrieveSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols)
+{
+    ElfFile elf(image.path);
+
+    if (!elf.parse())
+        return { EPlatformError::MalformedData, 0 };
+
+    auto parsed = elf.getSymbols(false); // dynsym only
+
+    int count = 0;
+    for (const auto& sym : parsed)
+    {
+        uint8_t bind = sym.info >> 4;
+
+        bool isImport = (sym.shndx == SHN_UNDEF);
+        bool isExport = !isImport && (bind == STB_GLOBAL || bind == STB_WEAK);
+
+        if (!isImport && !isExport)
+            continue;
+
+        ImageSymbol out{};
+        out.modName = image.name;
+        out.name = sym.name;
+        out.address = image.baseAddress + sym.value; // Todo: Import symbols resolve
+        out.source = isImport ? SymbolSource::Import : SymbolSource::Export;
+        out.index = count++;
+        out.forwarder = ""; // leave empty
+        symbols.push_back(std::move(out));
+    }
+
+    return { EPlatformError::Success, 0 };
 }
 
+
+
+} // namespace Azoth
 
 #endif

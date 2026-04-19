@@ -47,6 +47,8 @@ inline int toProt(EMemoryProtection p)
     return prot;
 }
 
+PlatformErrorState retrieveSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols);
+
 
 }
 
