@@ -844,6 +844,32 @@ PlatformErrorState retrieveImportSymbols(const ProcessImage& procImage, std::vec
 	}
 }
 
+PlatformErrorState retrieveSymbols(const ProcessImage& procImage, std::vector<ImageSymbol>& symbols)
+{
+	//Todo: should be named isValid()?
+	if (!procImage.valid() || procImage.path.empty())
+	{
+		return { EPlatformError::InvalidArgument, 0 };
+	}
+
+	HMODULE hmod = GetModuleHandleA(procImage.path.c_str());
+	if (hmod)
+	{
+		auto err = retrieveExportSymbols(procImage, hmod, symbols);
+		if (err.platformError != EPlatformError::Success) return err;
+		return retrieveImportSymbols(procImage, hmod, symbols);
+	}
+	else
+	{
+		ScopedModule ownedModule(LoadLibraryExA(procImage.path.c_str(), nullptr, DONT_RESOLVE_DLL_REFERENCES));
+		if (!ownedModule.get())
+			return { EPlatformError::InternalError, GetLastError() };
+		
+		auto err = retrieveExportSymbols(procImage, hmod, symbols);
+		if (err.platformError != EPlatformError::Success) return err;
+		return retrieveImportSymbols(procImage, hmod, symbols);
+	}
+}
 
 }
 

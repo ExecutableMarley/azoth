@@ -53,8 +53,9 @@ public:
 	virtual bool getProcessImage(const std::string& name, ProcessImage& processImage) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getAllProcessImages(std::vector<ProcessImage>& processImages) const { return setError(EPlatformError::NotImplemented); }
 
-	virtual bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
-	virtual bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
+	//virtual bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
+	//virtual bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const { return setError(EPlatformError::NotImplemented); }
 
 	//=== Process Query ===//
 
@@ -133,6 +134,26 @@ protected:
 			}
 		}
 		return setError(platformError, osError);
+	}
+
+	bool handleFailure(PlatformErrorState state, bool exitCheck = false) const
+	{
+		if (state.platformError == EPlatformError::Success) return setError(state);
+
+		if (exitCheck && !this->_isDead)
+		{
+			auto now = std::chrono::steady_clock::now();
+			if ((now - _lastAliveCheck) >= ALIVE_CHECK_INTERVAL)
+			{
+				_lastAliveCheck = now;
+				bool isAliveResult;
+				if (isAlive(isAliveResult) && !isAliveResult)
+				{
+					_isDead = true;
+				}
+			}
+		}
+		return setError(state);
 	}
 
 public:
