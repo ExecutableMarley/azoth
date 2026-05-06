@@ -18,6 +18,9 @@
 #include "../Core/ProcessImage.hpp"
 #include "../Core/MemoryRegion.hpp"
 
+#undef min
+#undef max
+
 namespace Azoth
 {
 
@@ -189,7 +192,7 @@ public:
 
 private:
 	mutable bool _isDead = true;
-	mutable std::chrono::steady_clock::time_point _lastAliveCheck = std::chrono::steady_clock::time_point::min();
+	mutable std::chrono::steady_clock::time_point _lastAliveCheck = std::chrono::time_point<std::chrono::steady_clock>::min();
 	static constexpr std::chrono::milliseconds ALIVE_CHECK_INTERVAL{500};
 
 	inline static thread_local PlatformErrorState _lastError;
