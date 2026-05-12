@@ -5,14 +5,14 @@
 
 #pragma once
 
-#include "Address.hpp"
-
-#include <stdint.h>
+#include <cstdint>
 #include <algorithm>
 #include <ostream>
 #include <sstream>
 #include <iomanip>
 #include <cassert>
+
+#include "Address.hpp"
 
 #undef min
 #undef max
@@ -50,7 +50,7 @@ public:
      * @param startAddr Inclusive start address.
      * @param stopAddr  Exclusive end address.
      */
-    MemoryRange(uint64_t startAddr, uint64_t stopAddr) noexcept : 
+    MemoryRange(std::uint64_t startAddr, std::uint64_t stopAddr) noexcept : 
         startAddr(startAddr), stopAddr(stopAddr)
     {
         if (this->stopAddr < this->startAddr)
@@ -105,11 +105,11 @@ public:
      *
      * @param align Alignment value (must be a power of two).
      */
-    void align(uint64_t align)
+    void align(std::uint64_t align)
     {
         assert((align & (align - 1)) == 0 && "Alignment must be power of two");
-        this->startAddr.alignDown(align);
-        this->stopAddr.alignUp(align);
+        this->startAddr = this->startAddr.alignDown(align);
+        this->stopAddr  = this->stopAddr.alignUp(align);
     }
 
     /**
@@ -118,8 +118,9 @@ public:
      * @param align Alignment value (must be a power of two).
      * @return True if both start and stop addresses are aligned.
      */
-    bool isAligned(uint64_t align) const
+    bool isAligned(std::uint64_t align) const
     {
+        assert((align & (align - 1)) == 0 && "Alignment must be power of two");
         return this->startAddr.isAligned(align) && this->stopAddr.isAligned(align);
     }
 
@@ -160,7 +161,7 @@ public:
         return absolute - startAddr;
     }
 
-    Address toAbsolute(uint64_t relative) const
+    Address toAbsolute(std::uint64_t relative) const
     {
         assert(relative < this->size());
         return startAddr + relative;

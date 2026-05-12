@@ -210,6 +210,7 @@ public:
 		return setError(retrieveAllProcessImages(this->_procID, processImages));
 	}
 
+	/*
 	bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
 	{
 		if (!isAttached())
@@ -224,6 +225,15 @@ public:
 			return setError(EPlatformError::InvalidState);
 
 		return setError(retrieveImportSymbols(image, symbols));
+	}
+	*/
+
+	bool getSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
+	{
+		if (!isAttached())
+			return setError(EPlatformError::InvalidState);
+
+		return setError(retrieveSymbols(image, symbols));
 	}
 
 	//=== Process Query ===//
@@ -286,7 +296,7 @@ public:
 		if (ReadProcessMemory(this->_hProcess, (LPVOID)addr, buffer, size, (SIZE_T*)&bytesRead) && bytesRead != 0)
 			return true;
 
-		return setError(EPlatformError::InternalError, GetLastError());
+		return handleFailure(EPlatformError::InternalError, GetLastError(), true);
 	}
 
 	bool write(uint64_t addr, size_t size, const void* buffer) override
@@ -298,7 +308,7 @@ public:
 		if (WriteProcessMemory(this->_hProcess, (LPVOID)addr, buffer, size, (SIZE_T*)&bytesRead) && bytesRead != 0)
 			return true;
 
-		return setError(EPlatformError::InternalError, GetLastError());
+		return handleFailure(EPlatformError::InternalError, GetLastError(), true);
 	}
 
 	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const override
@@ -312,7 +322,7 @@ public:
 			memoryRegion = fromWinBasicInformation(mbi);
 			return true;
 		}
-		return setError(EPlatformError::InternalError, GetLastError());
+		return handleFailure(EPlatformError::InternalError, GetLastError(), true);
 	}
 
 	bool virtualProtect(uint64_t addr, size_t size, EMemoryProtection newProtect, EMemoryProtection* oldProtect) override
@@ -328,7 +338,7 @@ public:
 				*oldProtect = fromWinProtect(winOldProtection);
 			return true;
 		}
-		return setError(EPlatformError::InternalError, GetLastError());
+		return handleFailure(EPlatformError::InternalError, GetLastError(), true);
 	}
 
 	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) override
@@ -342,7 +352,7 @@ public:
 		if (addr)
 			return addr;
 
-		return (uint64_t)setError(EPlatformError::InternalError, GetLastError());
+		return (uint64_t)handleFailure(EPlatformError::InternalError, GetLastError(), true);
 	}
 
 	bool virtualFree(uint64_t addr) override
@@ -354,7 +364,7 @@ public:
 		{
 			return true;
 		}
-		return setError(EPlatformError::InternalError, GetLastError());
+		return handleFailure(EPlatformError::InternalError, GetLastError(), true);
 	}
 
 	//=== Threads ===//

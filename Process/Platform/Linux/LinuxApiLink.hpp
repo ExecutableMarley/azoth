@@ -183,15 +183,22 @@ public:
         return setError(EPlatformError::Success);
     }
 
+    bool getSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
+    {
+        return setError(retrieveSymbols(image, symbols));
+    }
+
+    /*
     bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
     {
-        return setError(EPlatformError::NotImplemented);
+        return setError(retrieveSymbols(image, symbols));
     }
 
 	bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
     {
         return setError(EPlatformError::NotImplemented);
     }
+    */
 
 	//=== Process Query ===//
 
@@ -272,7 +279,7 @@ public:
         buffer[len] = '\0';
         path.assign(buffer);
 
-        return true;
+        return setError(EPlatformError::Success);
     }
 
 	bool getProcessArchitecture(uint32_t procID, EProcessArchitecture& architecture) const override
@@ -306,7 +313,7 @@ public:
 
         if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
         if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return handleFailure(EPlatformError::InternalError, (uint64_t)errno, true);
     }
 
 	bool write(uint64_t addr, size_t size, const void* buffer) override
@@ -328,7 +335,7 @@ public:
         
         if (errno == ESRCH) return setError(EPlatformError::ResourceNotFound);
         if (errno == EPERM) return setError(EPlatformError::AccessDenied);
-        return setError(EPlatformError::InternalError, (uint64_t)errno);
+        return handleFailure(EPlatformError::InternalError, (uint64_t)errno, true);
     }
 
 	bool queryMemory(uint64_t addr, MemoryRegion& memoryRegion) const override
@@ -406,10 +413,9 @@ public:
         if (!queryMemory(addr, region))
             return false;
 
-        //Todo: ptrace
         PtraceSession session(static_cast<pid_t>(this->_procID));
         if (!session.attach())
-            return setError(EPlatformError::InternalError, (uint64_t)errno);
+            return handleFailure(EPlatformError::InternalError, (uint64_t)errno, true);
 
         auto result = session.remoteSyscall(SYS_mprotect, addr, size, toProt(newProtect));
         if (result.error == 0)
@@ -418,14 +424,14 @@ public:
             return setError(EPlatformError::Success);
         }
 
-        return setError(EPlatformError::InternalError, (uint64_t)result.error);
+        return handleFailure(EPlatformError::InternalError, (uint64_t)result.error, false);
     }
 	
 	uint64_t virtualAllocate(uint64_t addr, size_t size, EMemoryProtection protection) override
     {
         PtraceSession session(static_cast<pid_t>(this->_procID));
         if (!session.attach())
-            return setError(EPlatformError::InternalError, (uint64_t)errno);
+            return handleFailure(EPlatformError::InternalError, (uint64_t)errno, true);
         
         auto result = session.remoteSyscall(SYS_mmap, addr, size, toProt(protection), MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (result.error == 0)
@@ -434,14 +440,14 @@ public:
             return static_cast<uint64_t>(result.value);
         }
 
-        return setError(EPlatformError::InternalError, (uint64_t)result.error);
+        return handleFailure(EPlatformError::InternalError, (uint64_t)result.error, false);
     }
 	
 	bool virtualFree(uint64_t addr) override
     {
         PtraceSession session(static_cast<pid_t>(this->_procID));
         if (!session.attach())
-            return setError(EPlatformError::InternalError, (uint64_t)errno);
+            return handleFailure(EPlatformError::InternalError, (uint64_t)errno, true);
         
         auto result = session.remoteSyscall(SYS_munmap, addr, 0);
         if (result.error == 0)
@@ -449,7 +455,7 @@ public:
             return setError(EPlatformError::Success);
         }
         
-        return setError(EPlatformError::InternalError, (uint64_t)result.error);
+        return handleFailure(EPlatformError::InternalError, (uint64_t)result.error, false);
     }
 
 	//=== Threads ===//

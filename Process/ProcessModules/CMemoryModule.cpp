@@ -233,7 +233,7 @@ bool CMemoryModule::restoreReadOnlyMemory(Address addr)
 
     const auto &entry = it->second;
 
-    if (!write(addr, entry.size, entry.originalBytes.get()))
+    if (!patchReadOnlyMemory(addr, entry.size, entry.originalBytes.get()))
         return false;
 
     _codeMemoryRestoreMap.erase(it);

@@ -39,10 +39,6 @@ public:
     /** @brief Implicitly constructs an Address from a raw unsigned 64-bit integer. */
     constexpr Address(value_type v) noexcept : value(v) {}
 
-    /** @brief Explicitly constructs an Address from a local pointer. */
-    /*explicit Address(const void* ptr) noexcept
-	    : value(reinterpret_cast<value_type>(ptr)) {}*/
-
     /** @brief Implicit conversion to the underlying 64-bit integer. */
     constexpr operator value_type() const noexcept { return value; }
 
@@ -90,21 +86,19 @@ public:
 
     // --- Comparison Operators ---
 
-    constexpr bool operator==(const Address& other) const noexcept { return value == other.value; }
-    constexpr bool operator!=(const Address& other) const noexcept { return value != other.value; }
-    constexpr bool operator< (const Address& other) const noexcept { return value < other.value; }
-    constexpr bool operator> (const Address& other) const noexcept { return value > other.value; }
-    
-    constexpr bool operator==(const value_type v) const noexcept { return value == v; }
-    constexpr bool operator!=(const value_type v) const noexcept { return value != v; }
-    constexpr bool operator< (const value_type v) const noexcept { return value <  v; }
-    constexpr bool operator> (const value_type v) const noexcept { return value >  v; }
+    //constexpr auto operator<=>(const Address&) const = default;
+
+    template <typename T> requires std::is_integral_v<T>
+    constexpr auto operator<=>(T v) const noexcept
+    {
+        return value <=> static_cast<value_type>(v);
+    }
 
     // --- Arithmetic Operators ---
     
     template <typename T>
     requires std::is_integral_v<T>
-    constexpr Address operator+(T offset) const noexcept{ return Address(value + static_cast<value_type>(offset)); }
+    constexpr Address operator+(T offset) const noexcept { return Address(value + static_cast<value_type>(offset)); }
 
     template <typename T>
     requires std::is_integral_v<T>
@@ -113,13 +107,6 @@ public:
     template <typename T>
     requires std::is_integral_v<T>
     constexpr Address& operator+=(T offset) noexcept { value += static_cast<value_type>(offset); return *this; }
-
-    /*
-    constexpr Address operator+  (value_type offset) const noexcept { return Address(value + offset); }
-    constexpr Address operator-  (value_type offset) const noexcept { return Address(value - offset); }
-    constexpr Address& operator+=(value_type offset) noexcept       { value += offset; return *this; }
-    constexpr Address& operator-=(value_type offset) noexcept       { value -= offset; return *this; }
-    */
 
     constexpr value_type operator-(const Address& other) const noexcept { return value - other.value; }
 

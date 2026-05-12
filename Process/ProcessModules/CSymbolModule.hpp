@@ -302,8 +302,7 @@ public:
         else
         {
             //Parse module
-            _platformLink->getExportSymbols(entry->image, entry->symbols);
-            _platformLink->getImportSymbols(entry->image, entry->symbols);
+            _platformLink->getSymbols(entry->image, entry->symbols);
             entry->isParsed = true;
 
             std::sort(entry->symbols.begin(), entry->symbols.end(), [](const ImageSymbol& a, const ImageSymbol& b) {
@@ -327,8 +326,7 @@ public:
         else
         {
             //Parse module
-            _platformLink->getExportSymbols(entry->image, entry->symbols);
-            _platformLink->getImportSymbols(entry->image, entry->symbols);
+            _platformLink->getSymbols(entry->image, entry->symbols);
             entry->isParsed = true;
 
             std::sort(entry->symbols.begin(), entry->symbols.end(), [](const ImageSymbol& a, const ImageSymbol& b) {

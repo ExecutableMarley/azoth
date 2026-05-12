@@ -123,6 +123,7 @@ public:
 	{
 		if (_platformLink->attach(processID))
 		{
+			_platformLink->setProcessToAlive();
 			this->_processID = processID;
 			this->retrieveProcessData();
 			this->_decoder.setTargetArchitecture(_architecture);
@@ -172,13 +173,30 @@ public:
 	//Process flow
 	
 	/**
-	 * @brief Check whether the attached process is still alive.
+	 * @brief Performs an active, real-time check whether the attached process is still alive.
 	 */
 	bool isAlive()
 	{
 		bool isAliveState = false;
 		_platformLink->isAlive(isAliveState);
 		return isAliveState;
+	}
+
+	/**
+	 * @brief Returns whether the process has been observed to terminate.
+	 * 
+	 * This is a cheap, cached state that is only updated when other operations
+	 * fail with errors indicating that the process has exited. Therefore:
+	 * 
+	 * - A return value of true is reliable: the process is confirmed dead.
+	 * - A return value of false does NOT guarantee the process is alive; it simply
+	 *   means no termination has been observed yet.
+	 * 
+	 * @note For an active, real-time check of process liveness, use isAlive() instead.
+	 */
+	bool hasDied() const
+	{
+		return _platformLink->hasDied();
 	}
 
 	/**
