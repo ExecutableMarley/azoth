@@ -99,7 +99,25 @@ public:
 	}
 
     // --- Process enumeration ---
-    //std::vector<ProcessInfo> enumerateProcesses() const;
+    std::vector<ProcessInfo> enumerateProcesses() const
+    {
+        std::vector<ProcessInfo> res;
+        std::vector<uint32_t> procIDs = {};
+        if (_platformLink->getProcessIDs(procIDs))
+        {
+            for (auto procID : procIDs)
+            {
+                ProcessInfo procInfo;
+                procInfo.pid = procID;
+                _platformLink->getProcessName(procID, procInfo.name);
+                _platformLink->getProcessPath(procID, procInfo.path);
+                _platformLink->getProcessArchitecture(procID, procInfo.arch);
+                res.push_back(procInfo);
+            }
+        }
+
+        return res;
+    }
     //std::vector<ProcessInfo> findProcesses(const ProcessQuery&) const;
 
     // --- Waiting ---

@@ -64,6 +64,7 @@ public:
 
 	virtual bool getProcessIDByName(const std::string& name, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getProcessIDsByName(const std::string& name, std::vector<uint32_t>& procIDs) const { return setError(EPlatformError::NotImplemented); }
+	virtual bool getProcessIDs(std::vector<uint32_t>& procIDs) const { return setError(EPlatformError::NotImplemented); }
 	virtual bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const { return setError(EPlatformError::NotImplemented); }
 
 	virtual bool getProcessName(uint32_t procID, std::string& name) const { return setError(EPlatformError::NotImplemented); }
