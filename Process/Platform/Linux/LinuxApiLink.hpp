@@ -242,6 +242,35 @@ public:
         return setError(EPlatformError::Success);
     }
 
+    bool getProcessIDs(std::vector<uint32_t>& procIDs) const override
+	{
+		procIDs.clear();
+
+        for (const auto& entry : fs::directory_iterator("/proc"))
+        {
+            if (!entry.is_directory())
+                continue;
+
+            const std::string pidStr = entry.path().filename().string();
+            if (!std::all_of(pidStr.begin(), pidStr.end(), ::isdigit))
+                continue;
+
+            std::ifstream commFile(entry.path() / "comm");
+            if (!commFile)
+                continue;
+
+            std::string comm;
+            std::getline(commFile, comm);
+            
+            procIDs.push_back(static_cast<uint32_t>(std::stoul(pidStr)));
+        }
+
+        if (procIDs.empty())
+            return setError(EPlatformError::ResourceNotFound);
+
+        return setError(EPlatformError::Success);
+	}
+
 	bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const override
     {
         // No universal 'window to process' mapping on Linux

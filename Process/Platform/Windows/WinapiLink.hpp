@@ -210,24 +210,6 @@ public:
 		return setError(retrieveAllProcessImages(this->_procID, processImages));
 	}
 
-	/*
-	bool getExportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
-	{
-		if (!isAttached())
-			return setError(EPlatformError::InvalidState);
-
-		return setError(retrieveExportSymbols(image, symbols));
-	}
-
-	bool getImportSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
-	{
-		if (!isAttached())
-			return setError(EPlatformError::InvalidState);
-
-		return setError(retrieveImportSymbols(image, symbols));
-	}
-	*/
-
 	bool getSymbols(const ProcessImage& image, std::vector<ImageSymbol>& symbols) const override
 	{
 		if (!isAttached())
@@ -246,6 +228,11 @@ public:
 	bool getProcessIDsByName(const std::string& name, std::vector<uint32_t>& procIDs) const override
 	{
 		return setError(retrieveProcessIDByName(name, procIDs));
+	}
+
+	bool getProcessIDs(std::vector<uint32_t>& procIDs) const override
+	{
+		return setError(retrieveProcessIDs(procIDs));
 	}
 
 	bool getProcessIDByWindowName(const std::string& windowTitle, uint32_t& procID) const override

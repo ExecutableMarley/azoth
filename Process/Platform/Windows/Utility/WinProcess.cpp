@@ -40,137 +40,181 @@ uint32_t Platform::getPID()
 	return GetCurrentProcessId();
 }
 
+template <typename Func>
+PlatformErrorState EnumerateProcessesInternal(Func&& callback)
+{
+    SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
+    if (!toolSnapshot.isValid())
+        return { EPlatformError::InternalError, GetLastError() };
+
+    PROCESSENTRY32 pEntry;
+    pEntry.dwSize = sizeof(pEntry);
+    pEntry.th32ProcessID = 0;
+
+    if (!Process32First(toolSnapshot, &pEntry))
+        return { EPlatformError::InternalError, GetLastError() };
+
+    do
+    {
+        // false means early return
+        if (!callback(pEntry))
+        {
+            break;
+        }
+    } while (Process32Next(toolSnapshot, &pEntry));
+
+    return { EPlatformError::Success, 0 };
+}
+
 PlatformErrorState retrieveProcessIDByName(const std::string& procName, uint32_t& out_process_id)
 {
-	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
-	if (!toolSnapshot.isValid())
-		return { EPlatformError::InternalError, GetLastError() };
+    bool found = false;
+    PlatformErrorState state = EnumerateProcessesInternal([&](const PROCESSENTRY32& pEntry) {
+        if (!strcmp(pEntry.szExeFile, procName.c_str()))
+        {
+            out_process_id = pEntry.th32ProcessID;
+            found = true;
+            return false; // Early stop
+        }
+        return true;
+    });
 
-	PROCESSENTRY32 pEntry;
-	pEntry.dwSize = sizeof(pEntry);
-	pEntry.th32ProcessID = 0;
-	if (!Process32First(toolSnapshot, &pEntry))
-		return { EPlatformError::InternalError, GetLastError() };
-	do
-	{
-		//Performs an ordinal Comparison, returns false (0) if equal
-		if (!strcmp(pEntry.szExeFile, procName.c_str()))
-		{
-			out_process_id = pEntry.th32ProcessID;
-			return { EPlatformError::Success, 0};
-		}
-	} while (Process32Next(toolSnapshot, &pEntry));
-	return { EPlatformError::ResourceNotFound, 0};
+    if (state.platformError != EPlatformError::Success) 
+        return state;
+
+    return found ? PlatformErrorState{ EPlatformError::Success, 0 } 
+                 : PlatformErrorState{ EPlatformError::ResourceNotFound, 0 };
 }
 
 PlatformErrorState retrieveProcessIDByName(const std::string& procName, std::vector<uint32_t>& out_process_ids)
 {
-	out_process_ids.clear();
-	SmartHandle toolSnapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
-	PROCESSENTRY32 pEntry;
-	pEntry.dwSize = sizeof(pEntry);
-	pEntry.th32ProcessID = 0;
-	if (!Process32First(toolSnapshot, &pEntry))
-	{
-		return { EPlatformError::InternalError, GetLastError() };
-	}
-	do
-	{
-		//Performs an ordinal Comparison, returns false (0) if equal
-		if (!strcmp(pEntry.szExeFile, procName.c_str()))
-		{
-			out_process_ids.push_back(pEntry.th32ProcessID);
-		}
-	} while (Process32Next(toolSnapshot, &pEntry));
+    out_process_ids.clear();
+    PlatformErrorState state = EnumerateProcessesInternal([&](const PROCESSENTRY32& pEntry) {
+        if (!strcmp(pEntry.szExeFile, procName.c_str()))
+        {
+            out_process_ids.push_back(pEntry.th32ProcessID);
+        }
+        return true; // Always return true
+    });
 
-	if (out_process_ids.empty())
-		return { EPlatformError::ResourceNotFound, 0 };
-	else
-		return { EPlatformError::Success, 0};
+    if (state.platformError != EPlatformError::Success) 
+        return state;
+
+    return out_process_ids.empty() ? PlatformErrorState{ EPlatformError::ResourceNotFound, 0 } 
+                                   : PlatformErrorState{ EPlatformError::Success, 0 };
+}
+
+PlatformErrorState retrieveProcessIDs(std::vector<uint32_t>& out_process_ids)
+{
+    out_process_ids.clear();
+    PlatformErrorState state = EnumerateProcessesInternal([&](const PROCESSENTRY32& pEntry)
+	{
+        out_process_ids.push_back(pEntry.th32ProcessID);
+        return true; // Always return true
+    });
+
+    if (state.platformError != EPlatformError::Success) 
+        return state;
+
+    return out_process_ids.empty() ? PlatformErrorState{ EPlatformError::ResourceNotFound, 0 } 
+                                   : PlatformErrorState{ EPlatformError::Success, 0 };
 }
 
 // NtQuerySystemInformation
 using fnNtQuerySystemInformation = decltype(&NtQuerySystemInformation);
 
+template <typename F>
+PlatformErrorState EnumerateProcessesFallbackInternal(F&& callback)
+{
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll) return { EPlatformError::SymbolNotFound, 0 };
+
+    fnNtQuerySystemInformation NtQuerySystemInformation =
+        (fnNtQuerySystemInformation)GetProcAddress(ntdll, "NtQuerySystemInformation");
+
+    if (!NtQuerySystemInformation) return { EPlatformError::SymbolNotFound, 0 };
+
+    ULONG size = 0x10000; // (64KB)
+    NTSTATUS status;
+    std::vector<uint8_t> system_information_buffer;
+
+    // Buffer allocation retry loop
+    do
+    {
+        system_information_buffer.resize(size);
+        PVOID buffer = system_information_buffer.data();
+
+		// 'size' will be updated with the required size on failure
+        status = NtQuerySystemInformation(SystemProcessInformation, buffer, size, &size);
+
+        // Handle size mismatch or buffer too small
+        if (status == STATUS_INFO_LENGTH_MISMATCH || status == 0xC0000008)
+        {
+            if (size > 0x1000000) return { EPlatformError::InternalError, (uint64_t)status }; // 16MB Safety cap
+            continue;
+        }
+        break;
+
+    } while (true);
+
+    if (!NT_SUCCESS(status))
+    {
+        return { EPlatformError::InternalError, (uint64_t)status }; 
+    }
+
+    // Traverse the linked structures
+    auto* current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(system_information_buffer.data());
+    while (true)
+    {
+        // Invoke the callback. Early return on false
+        if (!callback(*current_info))
+        {
+            break;
+        }
+
+		// Check if this is the last entry
+        if (current_info->NextEntryOffset == 0)
+        {
+            break;
+        }
+
+        // Advance to the next entry
+        current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(
+            reinterpret_cast<uint8_t*>(current_info) + current_info->NextEntryOffset
+        );
+    }
+
+    return { EPlatformError::Success, 0 };
+}
+
 PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, uint32_t& out_process_id)
 {
 	out_process_id = 0;
+	bool found = false;
 
 	std::wstring wprocess_name = StringUtil::toUtf16(process_name);
 	std::wstring wprocess_name_lower = StringUtil::to_lower(wprocess_name);
 
-	HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-	if (!ntdll) return { EPlatformError::SymbolNotFound, 0 };
+	PlatformErrorState state = EnumerateProcessesFallbackInternal([&](const SYSTEM_PROCESS_INFORMATION& info) {
+        if (info.ImageName.Buffer)
+        {
+            std::wstring current_image_name(info.ImageName.Buffer, info.ImageName.Length / sizeof(wchar_t));
+            
+            if (StringUtil::to_lower(current_image_name) == wprocess_name_lower)
+            {
+                out_process_id = (uint32_t)(ULONG_PTR)info.UniqueProcessId;
+                found = true;
+                return false; // Stop iterating
+            }
+        }
+        return true; // Keep searching
+    });
 
-	fnNtQuerySystemInformation NtQuerySystemInformation =
-		(fnNtQuerySystemInformation)GetProcAddress(ntdll, "NtQuerySystemInformation");
+    if (state.platformError != EPlatformError::Success) 
+        return state;
 
-	if (!NtQuerySystemInformation) return { EPlatformError::SymbolNotFound, 0 };
-
-	ULONG size = 0x10000; // (64KB)
-	NTSTATUS status;
-	std::vector<uint8_t> system_information_buffer;
-
-	do
-	{
-		system_information_buffer.resize(size);
-		PVOID buffer = system_information_buffer.data();
-
-		// 'size' will be updated with the required size on failure
-		status = NtQuerySystemInformation(
-			SystemProcessInformation,
-			buffer,
-			size,
-			&size
-		);
-
-		// 0xC0000004 or 0xC0000008
-		if (status == STATUS_INFO_LENGTH_MISMATCH || status == 0xC0000008)
-		{
-			if (size > 0x1000000) return { EPlatformError::InternalError, (uint64_t)status }; // Safety (16MB)
-			continue;
-		}
-
-		break;
-
-	} while (true);
-
-	if (!NT_SUCCESS(status))
-	{
-		return { EPlatformError::InternalError, (uint64_t)status }; // Unrecoverable
-	}
-
-	SYSTEM_PROCESS_INFORMATION* current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(system_information_buffer.data());
-
-	while (true)
-	{
-		// Check if name is available
-		if (current_info->ImageName.Buffer)
-		{
-			std::wstring current_image_name(current_info->ImageName.Buffer, current_info->ImageName.Length / sizeof(wchar_t));
-			std::wstring current_image_name_lower = StringUtil::to_lower(current_image_name);
-
-			if (current_image_name_lower == wprocess_name_lower)
-			{
-				out_process_id = (uint32_t)(ULONG_PTR)current_info->UniqueProcessId;
-				return { EPlatformError::Success, 0 };
-			}
-		}
-
-		// Check if this is the last entry
-		if (current_info->NextEntryOffset == 0)
-		{
-			break;
-		}
-
-		// Advance to the next entry
-		current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(
-			reinterpret_cast<uint8_t*>(current_info) + current_info->NextEntryOffset
-			);
-	}
-
-	// In this case the process simply did not exist
-	return { EPlatformError::ResourceNotFound, 0 };
+    return found ? PlatformErrorState{ EPlatformError::Success, 0 } 
+                 : PlatformErrorState{ EPlatformError::ResourceNotFound, 0 };
 }
 
 PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_name, std::vector<uint32_t>& process_ids)
@@ -180,80 +224,44 @@ PlatformErrorState retrieveProcessIDByNameFallback(const std::string& process_na
 	std::wstring wprocess_name = StringUtil::toUtf16(process_name);
 	std::wstring wprocess_name_lower = StringUtil::to_lower(wprocess_name);
 
-	HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-	if (!ntdll) return { EPlatformError::SymbolNotFound, 0 };
+	PlatformErrorState state = EnumerateProcessesFallbackInternal([&](const SYSTEM_PROCESS_INFORMATION& info) {
+        if (info.ImageName.Buffer)
+        {
+            std::wstring current_image_name(info.ImageName.Buffer, info.ImageName.Length / sizeof(wchar_t));
+            
+            if (StringUtil::to_lower(current_image_name) == wprocess_name_lower)
+            {
+                process_ids.push_back((uint32_t)(ULONG_PTR)info.UniqueProcessId);
+            }
+        }
+        return true; // Always return true
+    });
 
-	fnNtQuerySystemInformation NtQuerySystemInformation =
-		(fnNtQuerySystemInformation)GetProcAddress(ntdll, "NtQuerySystemInformation");
+    if (state.platformError != EPlatformError::Success) 
+        return state;
 
-	if (!NtQuerySystemInformation) return { EPlatformError::SymbolNotFound, 0 };
+    return process_ids.empty() ? PlatformErrorState{ EPlatformError::ResourceNotFound, 0 } 
+                               : PlatformErrorState{ EPlatformError::Success, 0 };
+}
 
-	ULONG size = 0x10000; // (64KB)
-	NTSTATUS status;
-	std::vector<uint8_t> system_information_buffer;
+PlatformErrorState retrieveProcessIDsFallback(std::vector<uint32_t>& process_ids)
+{
+	process_ids.clear();
 
-	do
-	{
-		system_information_buffer.resize(size);
-		PVOID buffer = system_information_buffer.data();
+	PlatformErrorState state = EnumerateProcessesFallbackInternal([&](const SYSTEM_PROCESS_INFORMATION& info) {
+        if (info.ImageName.Buffer)
+        {
+            std::wstring current_image_name(info.ImageName.Buffer, info.ImageName.Length / sizeof(wchar_t));
+            process_ids.push_back((uint32_t)(ULONG_PTR)info.UniqueProcessId);
+        }
+        return true; // Always return true
+    });
 
-		// 'size' will be updated with the required size on failure
-		status = NtQuerySystemInformation(
-			SystemProcessInformation,
-			buffer,
-			size,
-			&size
-		);
+    if (state.platformError != EPlatformError::Success) 
+        return state;
 
-		// 0xC0000004 or 0xC0000008
-		if (status == STATUS_INFO_LENGTH_MISMATCH || status == 0xC0000008)
-		{
-			if (size > 0x1000000) return { EPlatformError::InternalError, (uint64_t)status }; // Safety (16MB)
-			continue;
-		}
-
-		break;
-
-	} while (true);
-
-	if (!NT_SUCCESS(status))
-	{
-		return { EPlatformError::InternalError, (uint64_t)status }; // Unrecoverable
-	}
-
-	SYSTEM_PROCESS_INFORMATION* current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(system_information_buffer.data());
-
-	while (true)
-	{
-		// Check if name is available
-		if (current_info->ImageName.Buffer)
-		{
-			std::wstring current_image_name(current_info->ImageName.Buffer, current_info->ImageName.Length / sizeof(wchar_t));
-			std::wstring current_image_name_lower = StringUtil::to_lower(current_image_name);
-
-			if (current_image_name_lower == wprocess_name_lower)
-			{
-				process_ids.push_back((uint32_t)(ULONG_PTR)current_info->UniqueProcessId);
-				return { EPlatformError::Success, 0 };
-			}
-		}
-
-		// Check if this is the last entry
-		if (current_info->NextEntryOffset == 0)
-		{
-			break;
-		}
-
-		// Advance to the next entry
-		current_info = reinterpret_cast<SYSTEM_PROCESS_INFORMATION*>(
-			reinterpret_cast<uint8_t*>(current_info) + current_info->NextEntryOffset
-			);
-	}
-
-	if (process_ids.empty())
-		return { EPlatformError::ResourceNotFound, 0};
-	else
-		return { EPlatformError::Success, 0 };
+    return process_ids.empty() ? PlatformErrorState{ EPlatformError::ResourceNotFound, 0 } 
+                               : PlatformErrorState{ EPlatformError::Success, 0 };
 }
 
 PlatformErrorState retrieveProcessIDByWindowName(const std::string& windowName, uint32_t& out_process_id)
