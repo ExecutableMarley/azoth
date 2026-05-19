@@ -9,6 +9,7 @@
 #include "../Types/Address.hpp"
 #include "../Types/EProcessArchitecture.hpp"
 #include "../Core/ProcessImage.hpp"
+#include "CSymbolModule.hpp"
 
 #include <string>
 #include <cstring>
@@ -602,7 +603,7 @@ private:
 class CDecoderModule
 {
 public:
-    CDecoderModule(CProcess* backPtr);
+    CDecoderModule(EProcessArchitecture architecture);
 
 public:
 	CDecoderModule(const CDecoderModule&) = delete;
@@ -611,7 +612,8 @@ public:
 
 public:
 
-	void setTargetArchitecture(EProcessArchitecture architecture);
+	static CDecoderModule& GetInstance(EProcessArchitecture architecture);
+	//void setTargetArchitecture(EProcessArchitecture architecture);
 
 	//setFormatting style
 
@@ -639,40 +641,37 @@ public:
 
 	Address decodeAbsoluteMemoryAddress(const uint8_t* buffer, size_t bufferSize, Address runtimeAddress, int operandIndex = -1);
 
-	std::ostream& formatInstruction(std::ostream& os, const CompactInstruction& instr) const;
+	std::ostream& formatInstruction(std::ostream& os, const CompactInstruction& instr, IAddressResolver* resolver = nullptr) const;
 
-	std::ostream& formatInstruction(std::ostream& os, const Instruction& instr) const;
+	std::ostream& formatInstruction(std::ostream& os, const Instruction& instr, IAddressResolver* resolver = nullptr) const;
 
-    std::string formatInstruction(const CompactInstruction& instr) const;
+    std::string formatInstruction(const CompactInstruction& instr, IAddressResolver* resolver = nullptr) const;
 
-	std::string formatInstruction(const Instruction& instr) const;
+	std::string formatInstruction(const Instruction& instr, IAddressResolver* resolver = nullptr) const;
 
 private:
 	template <typename T>
 	struct FormatterProxy {
         const CDecoderModule& module;
         const T& ci;
+		IAddressResolver* resolver;
 
 		//Proxy operator
         friend std::ostream& operator<<(std::ostream& os, const FormatterProxy& proxy) {
-            return proxy.module.formatInstruction(os, proxy.ci);
+            return proxy.module.formatInstruction(os, proxy.ci, proxy.resolver);
         }
     };
 
 public:
 	//Slightly more convenient << use
 	template <typename T>
-	FormatterProxy<T> fmt(const T& ci) const
+	FormatterProxy<T> fmt(const T& ci, IAddressResolver* resolver = nullptr) const
 	{
-        return { *this, ci };
+        return { *this, ci, resolver };
     }
 
-	bool resolveSymbol(Address runtimeAddress, ImageSymbol& outSymbol);
-
-	bool resolveModule(Address runtimeAddress, ProcessImage& outImage, uint64_t& outOffset);
-
 private:
-	CProcess*      _backPtr; 
+	//CProcess*      _backPtr; 
 	ZydisDecoder   _decoder;   //20 Bytes
 	ZydisFormatter _formatter; //600 Bytes
 	bool _isReady = false;

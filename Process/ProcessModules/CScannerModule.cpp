@@ -635,8 +635,8 @@ std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module
         return {};
 
     std::vector<Address> crossRefs;
-    auto& decoder = this->_backPtr->getDecoder();
-    //const Address absoluteTargetAddress = module.baseAddress + relativeTargetAddress;
+    //auto& decoder = this->_backPtr->getDecoder();
+    auto& decoder = CDecoderModule::GetInstance(this->_backPtr->GetArchitecture());
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -691,8 +691,8 @@ std::vector<Address> CScannerModule::findAllCrossRefs(std::span<const MemoryCopy
     //Todo: We should consider storing vmemory mapping info inside memCopy
 
     std::vector<Address> crossRefs;
-    auto& decoder = this->_backPtr->getDecoder();
-    //const Address absoluteTargetAddress = 0 + relativeTargetAddress;
+    //auto& decoder = this->_backPtr->getDecoder();
+    auto& decoder = CDecoderModule::GetInstance(this->_backPtr->GetArchitecture());
 
     for (const auto &memCopy : memSnap)
     {
