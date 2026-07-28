@@ -62,7 +62,7 @@ public:
      *
      * @return True if the read succeeded.
      */
-	bool read(Address addr, size_t size, void* buffer)
+	bool read(Address addr, size_t size, void* buffer) const
 	{
 		return _platformLink->read(addr, size, buffer);
 	}
@@ -77,7 +77,7 @@ public:
      * @return True if the read succeeded.
      */
 	template <class T> requires std::is_trivially_copyable_v<T>
-	bool read(Address addr, T& buffer)
+	bool read(Address addr, T& buffer) const
 	{
 		return this->read(addr, sizeof(buffer), &buffer);
 	}
@@ -93,7 +93,7 @@ public:
      *
      * @return True if the read succeeded.
      */
-	bool readString(Address addr, std::string& buffer, size_t maxSize = 256)
+	bool readString(Address addr, std::string& buffer, size_t maxSize = 256) const
 	{
 		std::vector<char> v(maxSize + 1, 0);
 		if (!this->read(addr, maxSize, v.data()))
@@ -113,7 +113,7 @@ public:
      * @return Read value or @p defaultValue on failure.
      */
 	template <class T> requires std::is_trivially_copyable_v<T>
-	T read(Address addr, const T& defaultValue = T())
+	T read(Address addr, const T& defaultValue = T()) const
 	{
 		T res;
 		if (!this->read(addr, sizeof(res), &res))
@@ -131,7 +131,7 @@ public:
      *
      * @return The read string, or an empty string on failure.
      */
-	std::string readString(Address addr, size_t maxSize = 256)
+	std::string readString(Address addr, size_t maxSize = 256) const
 	{
 		std::vector<char> buffer(maxSize + 1, 0);
 		if (!this->read(addr, maxSize, buffer.data()))
@@ -140,7 +140,7 @@ public:
 		return std::string(buffer.data());
 	}
 
-	std::string readString(Address addr, std::vector<uint64_t> offsets, size_t size = 256)
+	std::string readString(Address addr, std::vector<uint64_t> offsets, size_t size = 256) const
 	{
 		for (uint64_t offset : offsets)
 		{
@@ -162,7 +162,7 @@ public:
       *
       * @return True if the pointer was successfully read; false otherwise.
       */
-     bool readPtr(Address addr, Address& out);
+     bool readPtr(Address addr, Address& out) const;
 
 	//=== Write Memory ===//
 
