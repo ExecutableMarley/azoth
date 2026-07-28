@@ -4,6 +4,7 @@ target_sources(Process INTERFACE
     ProcessModules/CMemoryModule.cpp
     ProcessModules/CDecoderModule.cpp
     ProcessModules/CScannerModule.cpp
+    Core/AddressCursor.cpp
     Core/MemoryCopy.cpp
     Core/MemoryBlock.cpp
     Core/PointerEndpoint.cpp
