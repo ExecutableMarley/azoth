@@ -62,12 +62,12 @@ public:
     Address get() const { return _address; }
 
     PatternMatch add(uint64_t offset) const {
-		if (_invalid) Invalid();
+		if (_invalid) return Invalid();
         return PatternMatch(_address + offset, _curByte + offset, _sharedBuffer, _regionSize); 
     }
     
     PatternMatch sub(uint64_t offset) const {
-		if (_invalid) Invalid();
+		if (_invalid) return Invalid();
         return PatternMatch(_address - offset, _curByte - offset, _sharedBuffer, _regionSize);
     }
 
