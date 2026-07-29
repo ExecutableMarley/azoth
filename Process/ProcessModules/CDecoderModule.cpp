@@ -5,6 +5,8 @@
 
 #include "CDecoderModule.hpp"
 
+#ifdef AZOTH_ENABLE_DECODER
+
 #include "../Types/EProcessArchitecture.hpp"
 #include "../CProcess.hpp"
 
@@ -124,7 +126,7 @@ ZyanStatus PrintAbsAddressHook(
     //Check if user data exists
     if (context->user_data)
     {
-        auto decoder = (CDecoderModule*)context->user_data;
+        auto resolver = (IAddressResolver*)context->user_data;
 
         ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
         ZyanString* str;
@@ -133,7 +135,7 @@ ZyanStatus PrintAbsAddressHook(
         ProcessImage image;
         uint64_t offset;
         ImageSymbol symbol;
-        if (decoder->resolveSymbol(address, symbol))
+        if (resolver->resolveSymbol(address, true, symbol, offset))
         {
             std::string text;
 
@@ -149,7 +151,7 @@ ZyanStatus PrintAbsAddressHook(
             }
             return ZydisStringAppendStringView(str, text);
         }
-        else if (decoder->resolveModule(address, image, offset))
+        else if (resolver->resolveModule(address, image, offset))
         {
             std::string text = image.name + "+";// + std::to_string(offset);
             ZydisStringAppendStringView(str, text);
@@ -187,9 +189,9 @@ InstructionFormatter::InstructionFormatter(Style style)
 }
 
 
-CDecoderModule::CDecoderModule(CProcess* backPtr) : _backPtr(backPtr)
+CDecoderModule::CDecoderModule(EProcessArchitecture architecture)
 {
-    if (sizeof(void*) == 4)
+    if (architecture == EProcessArchitecture::x86)
     {
         ZydisDecoderInit(&_decoder, ZYDIS_MACHINE_MODE_LONG_COMPAT_32, ZYDIS_STACK_WIDTH_32);
     }
@@ -220,6 +222,21 @@ CDecoderModule::CDecoderModule(CProcess* backPtr) : _backPtr(backPtr)
     _isReady = true;
 }
 
+CDecoderModule& CDecoderModule::GetInstance(EProcessArchitecture architecture)
+{
+    if (architecture == EProcessArchitecture::x86)
+    {
+        static CDecoderModule x86Decoder(EProcessArchitecture::x86);
+        return x86Decoder;
+    }
+    else
+    {
+        static CDecoderModule x64Decoder(EProcessArchitecture::x64);
+        return x64Decoder;
+    }
+}
+
+/*
 void CDecoderModule::setTargetArchitecture(EProcessArchitecture architecture)
 {
     if (architecture == EProcessArchitecture::x86)
@@ -235,6 +252,7 @@ void CDecoderModule::setTargetArchitecture(EProcessArchitecture architecture)
         return;
     }
 }
+*/
 
 bool CDecoderModule::decodeAt(const uint8_t *buffer, size_t size, Address runtimeAddr, CompactInstruction &out)
 {
@@ -341,7 +359,7 @@ Address CDecoderModule::decodeAbsoluteMemoryAddress(const uint8_t *buffer, size_
     return absAddr;
 }
 
-std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactInstruction& instr) const
+std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactInstruction& instr, IAddressResolver* resolver) const
 {
 	if (!instr.isValid())
 	{
@@ -355,14 +373,14 @@ std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const CompactI
 	}
 	char szBuffer[128];
 	if (!ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instruction, operands, instruction.operand_count, 
-		szBuffer, sizeof(szBuffer), instr.address, (void*)this )))
+		szBuffer, sizeof(szBuffer), instr.address, (void*)resolver )))
     {
 		return os << "<invalid instruction>";
 	}
 	return os << szBuffer;
 }
 
-std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const Instruction& instr) const
+std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const Instruction& instr, IAddressResolver* resolver) const
 {
 	if (!instr.isValid())
 	{
@@ -375,40 +393,27 @@ std::ostream& CDecoderModule::formatInstruction(std::ostream& os, const Instruct
 	}
 	char szBuffer[128];
 	if (!ZYAN_SUCCESS(ZydisFormatterFormatInstruction(&_formatter, &instr._instr, operands, ZYDIS_MAX_OPERAND_COUNT, 
-		szBuffer, sizeof(szBuffer), instr._runtimeAddr, (void*)this )))
+		szBuffer, sizeof(szBuffer), instr._runtimeAddr, (void*)resolver )))
     {
 		return os << "<invalid instruction>";
 	}
 	return os << szBuffer;
 }
 
-std::string CDecoderModule::formatInstruction(const CompactInstruction& instr) const
+std::string CDecoderModule::formatInstruction(const CompactInstruction& instr, IAddressResolver* resolver) const
 {
 	std::ostringstream oss;
-	formatInstruction(oss, instr);
+	formatInstruction(oss, instr, resolver);
 	return oss.str();
 }
 
-std::string CDecoderModule::formatInstruction(const Instruction& instr) const
+std::string CDecoderModule::formatInstruction(const Instruction& instr, IAddressResolver* resolver) const
 {
 	std::ostringstream oss;
-	formatInstruction(oss, instr);
+	formatInstruction(oss, instr, resolver);
 	return oss.str();
 }
 
-bool CDecoderModule::resolveSymbol(Address runtimeAddress, ImageSymbol& outSymbol)
-{
-	return _backPtr->getSymbols().findSymbolByAddress(runtimeAddress, true, outSymbol);
 }
 
-bool CDecoderModule::resolveModule(Address runtimeAddress, ProcessImage& outImage, uint64_t& outOffset)
-{
-    if (_backPtr->getSymbols().findModuleByAddress(runtimeAddress, outImage))
-    {
-        outOffset = runtimeAddress - outImage.baseAddress;
-        return true;
-    }
-    return false;
-}
-
-}
+#endif

@@ -178,7 +178,7 @@ std::vector<Address> CScannerModule::findAllPatternEx(const MemoryCopy& memCopy,
 
 
 
-PatternMatch CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern)
+AddressCursor CScannerModule::signatureScanEx(const MemoryRange& memRange, const Pattern& pattern)
 {
     std::shared_ptr<BYTE[]> buffer = std::make_shared<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -208,14 +208,20 @@ PatternMatch CScannerModule::signatureScanEx(const MemoryRange& memRange, const 
                 if (!memRange.contains(ptr))
                     continue;
 
-                return PatternMatch(ptr, curByte, buffer, region.regionSize);
+                // Construct a small buffer
+                size_t bytesRemainingInRegion = region.regionSize - (curByte - buffer.get());
+                size_t sliceSize = std::min(AddressCursor::LOCAL_BUFFER_SIZE, bytesRemainingInRegion);
+                auto windowBuffer = std::make_shared<BYTE[]>(sliceSize);
+                std::copy_n(curByte, sliceSize, windowBuffer.get());
+
+                return AddressCursor(ptr, windowBuffer, sliceSize, ptr, _memory);
             }
         }
     }
-    return PatternMatch::Invalid();
+    return AddressCursor::Invalid();
 }
 
-PatternMatch CScannerModule::signatureScanEx(const Pattern& pattern)
+AddressCursor CScannerModule::signatureScanEx(const Pattern& pattern)
 {
     const auto architecture = _backPtr->GetArchitecture();
     if (architecture == EProcessArchitecture::x86 || architecture == EProcessArchitecture::ARM32)
@@ -224,7 +230,7 @@ PatternMatch CScannerModule::signatureScanEx(const Pattern& pattern)
         return signatureScanEx(MemoryRange::max_range_64bit(), pattern);
 }
 
-PatternMatch CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern)
+AddressCursor CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern)
 {
     size_t patternSize = pattern.size();
 
@@ -240,17 +246,20 @@ PatternMatch CScannerModule::signatureScanEx(std::span<const MemoryCopy> memSnap
                 uint64_t ptr = memCopy.translate(curByte);
                 size_t offset = curByte - memCopy.getBuffer();
 
-                // Consider: 64 Bytes would probably be enough already
-                std::shared_ptr<BYTE[]> sharedBuffer = std::make_shared<BYTE[]>(memCopy.getSize());
-                std::copy_n(memCopy.getBuffer(), memCopy.getSize(), sharedBuffer.get());
-                return PatternMatch(ptr, sharedBuffer.get() + offset, sharedBuffer, memCopy.getSize());
+                // Construct a small buffer
+                size_t bytesRemainingInCopy = memCopy.getSize() - (curByte - memCopy.getBuffer());
+                size_t sliceSize = std::min(AddressCursor::LOCAL_BUFFER_SIZE, bytesRemainingInCopy);
+                auto windowBuffer = std::make_shared<BYTE[]>(sliceSize);
+                std::copy_n(curByte, sliceSize, windowBuffer.get());
+
+                return AddressCursor(ptr, windowBuffer, sliceSize, ptr, _memory);
             }
         }
     }
-    return PatternMatch::Invalid();
+    return AddressCursor::Invalid();
 }
 
-PatternMatch CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern)
+AddressCursor CScannerModule::signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern)
 {
     return signatureScanEx(std::span{ &memCopy, 1 }, pattern);
 }
@@ -629,14 +638,16 @@ Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSiz
     return scanForCodeCave(std::span{ &memCopy, 1 }, minSize, alignment);
 }
 
+#ifdef AZOTH_ENABLE_DECODER
+
 std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module, Address absoluteTargetAddress)
 {
     if (!module.valid() || !((MemoryRange)module).contains(absoluteTargetAddress))
         return {};
 
     std::vector<Address> crossRefs;
-    auto& decoder = this->_backPtr->getDecoder();
-    //const Address absoluteTargetAddress = module.baseAddress + relativeTargetAddress;
+    //auto& decoder = this->_backPtr->getDecoder();
+    auto& decoder = CDecoderModule::GetInstance(this->_backPtr->GetArchitecture());
 
     std::unique_ptr<BYTE[]> buffer = std::make_unique<BYTE[]>(0x1000);
     size_t bufferSize = 0x1000;
@@ -691,8 +702,8 @@ std::vector<Address> CScannerModule::findAllCrossRefs(std::span<const MemoryCopy
     //Todo: We should consider storing vmemory mapping info inside memCopy
 
     std::vector<Address> crossRefs;
-    auto& decoder = this->_backPtr->getDecoder();
-    //const Address absoluteTargetAddress = 0 + relativeTargetAddress;
+    //auto& decoder = this->_backPtr->getDecoder();
+    auto& decoder = CDecoderModule::GetInstance(this->_backPtr->GetArchitecture());
 
     for (const auto &memCopy : memSnap)
     {
@@ -782,6 +793,8 @@ std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& mod
 {
     return findSymbolCrossRefs(module, std::span{ &memCopy, 1 }, symbol);
 }
+
+#endif
 
 
 }

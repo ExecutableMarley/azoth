@@ -48,7 +48,7 @@ int main()
     }
 
     // --- Decoder Module
-    auto& decoder = process.getDecoder();
+    auto& decoder = CDecoderModule::GetInstance(process.GetArchitecture());
 
     auto reRegions = memory.queryAllMemoryRegions(mainImage, ProtectionFilter::exact(EMemoryProtection::ReadExec));
 

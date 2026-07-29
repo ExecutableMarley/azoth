@@ -38,6 +38,23 @@ struct ModuleEntryHandle
     bool valid() const { return index != npos; }
 };
 
+class IAddressResolver
+{
+public:
+    virtual ~IAddressResolver() = default;
+
+    virtual bool resolveSymbol(
+        Address address,
+        bool exactMatch,
+        ImageSymbol& outSymbol,
+        uint64_t& outOffset) = 0;
+
+    virtual bool resolveModule(
+        Address address,
+        ProcessImage& outImage,
+        uint64_t& outOffset) = 0;
+};
+
 /**
  * @brief Provides module and symbol resolution for a target process.
  *
@@ -45,7 +62,7 @@ struct ModuleEntryHandle
  * address or name. Supports resolving symbols within modules, including
  * name-based and address-based queries.
  */
-class CSymbolModule
+class CSymbolModule : public IAddressResolver
 {
 public:
     CSymbolModule(CProcess* process, IPlatformLink* platformLink)
@@ -354,6 +371,22 @@ public:
         std::string_view sym = combinedName.substr(pos + 1);
 
         return findSymbolByName(mod, sym, outSymbol);
+    }
+
+    bool resolveSymbol(Address address, bool exactMatch, ImageSymbol &outSymbol, uint64_t &outOffset) override
+    {
+        // Todo: Allow non exact offset matches
+        return findSymbolByAddress(address, true, outSymbol);
+    }
+
+    bool resolveModule(Address address, ProcessImage &outImage, uint64_t &outOffset) override
+    {
+        if (findModuleByAddress(address, outImage))
+        {
+            outOffset = address - outImage.baseAddress;
+            return true;
+        }
+        return false;
     }
 
 private:

@@ -10,6 +10,7 @@
 #include "../Types/Pattern.hpp"
 
 #include "../Core/ProcessImage.hpp"
+#include "../Core/AddressCursor.hpp"
 #include "../Core/MemoryRegion.hpp"
 #include "../Core/MemoryCopy.hpp"
 
@@ -22,73 +23,6 @@ namespace Azoth
 
 class CProcess;
 class CMemoryModule;
-
-/**
- * @brief Represents a pattern scan match with utilities for address resolution.
- */
-class PatternMatch
-{
-	/*
-	Experimental class to easily allow the modification of pattern scan results.
-	*/
-public:
-    using Buffer = BYTE[];
-
-    friend class CScannerModule;
-
-private:
-    Address _address;
-    BYTE*   _curByte;
-    std::shared_ptr<Buffer> _sharedBuffer;
-    size_t _regionSize;
-	bool _invalid;
-
-    PatternMatch(Address addr, BYTE* cur, std::shared_ptr<Buffer> buf, size_t regionSize, bool invalid = false) 
-        : _address(addr), _curByte(cur), _sharedBuffer(buf), _regionSize(regionSize), _invalid(invalid) {}
-    
-    bool insideBuffer(BYTE* ptr, size_t size) const
-    {
-        if (!_sharedBuffer) return false;
-        BYTE* start = _sharedBuffer.get();
-        BYTE* end = start + _regionSize;
-        return (start <= ptr && ptr + size < end);
-    }
-
-public:
-    static PatternMatch Invalid() {
-        return PatternMatch(0, nullptr, nullptr, 0, true);
-    }
-
-    Address get() const { return _address; }
-
-    PatternMatch add(uint64_t offset) const {
-		if (_invalid) Invalid();
-        return PatternMatch(_address + offset, _curByte + offset, _sharedBuffer, _regionSize); 
-    }
-    
-    PatternMatch sub(uint64_t offset) const {
-		if (_invalid) Invalid();
-        return PatternMatch(_address - offset, _curByte - offset, _sharedBuffer, _regionSize);
-    }
-
-    PatternMatch read4(uint64_t offset = 0) const {
-        if (!insideBuffer(_curByte + offset, 4)) return Invalid();
-        Address absAddr = *(uint32_t*)(_curByte + offset);
-        return PatternMatch(absAddr, nullptr, nullptr, 0);
-    }
-
-    PatternMatch read8(uint64_t offset = 0) const {
-        if (!insideBuffer(_curByte + offset, 8)) return Invalid();
-        Address absAddr = *(uint64_t*)(_curByte + offset);
-        return PatternMatch(absAddr, nullptr, nullptr, 0);
-    }
-
-    PatternMatch readRel(uint64_t offset = 0) const {
-        if (!insideBuffer(_curByte + offset, 4)) return Invalid();
-        uint32_t relAddr = *(uint32_t*)(_curByte + offset);
-        return PatternMatch(_address + relAddr, _curByte + relAddr, _sharedBuffer, _regionSize);
-    }
-};
 
 
 /**
@@ -164,13 +98,13 @@ public:
 	 *
 	 * @return The resolved address, or 0 if the signature was not found or invalid.
 	 */
-	PatternMatch signatureScanEx(const MemoryRange& memRange, const Pattern& pattern);
+	AddressCursor signatureScanEx(const MemoryRange& memRange, const Pattern& pattern);
 
-	PatternMatch signatureScanEx(const Pattern& pattern);
+	AddressCursor signatureScanEx(const Pattern& pattern);
 
-	PatternMatch signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern);
+	AddressCursor signatureScanEx(std::span<const MemoryCopy> memSnap, const Pattern& pattern);
 
-	PatternMatch signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern);
+	AddressCursor signatureScanEx(const MemoryCopy& memCopy, const Pattern& pattern);
 
 	//--------------------------------------------------------
 	// Value scanning
@@ -328,6 +262,8 @@ public:
 
 	Address scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment = 1);
 
+#ifdef AZOTH_ENABLE_DECODER
+
 	/**
 	 * @brief Finds all cross-references to a relative address within a module.
 	 *
@@ -353,6 +289,8 @@ public:
 	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, std::span<const MemoryCopy> memSnap, const ImageSymbol& symbol);
 
 	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, const MemoryCopy& memCopy, const ImageSymbol& symbol);
+
+#endif
 
 private:
 	CProcess* _backPtr;

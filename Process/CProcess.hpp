@@ -75,7 +75,7 @@ public:
 	 * These steps must be performed explicitly.
 	 */
 	CProcess(std::unique_ptr<IPlatformLink> platformLink) : _platformLink(std::move(platformLink)),
-		_memory(this, _platformLink.get()), _symbols(this, _platformLink.get()), _decoder(this), _scanner(this),
+		_memory(this, _platformLink.get()), _symbols(this, _platformLink.get()), /*_decoder(this),*/ _scanner(this),
 		_processID(0)
 	{
 		assert(_platformLink);
@@ -126,7 +126,7 @@ public:
 			_platformLink->setProcessToAlive();
 			this->_processID = processID;
 			this->retrieveProcessData();
-			this->_decoder.setTargetArchitecture(_architecture);
+			//this->_decoder.setTargetArchitecture(_architecture);
 			return true;
 		}
 		return false;
@@ -304,13 +304,13 @@ private:
 public:
 	CMemoryModule& getMemory() { return _memory; }
 	CSymbolModule& getSymbols() { return _symbols; }
-	CDecoderModule& getDecoder() { return _decoder; }
+	//CDecoderModule& getDecoder() { return _decoder; }
 	CScannerModule& getScanner() { return _scanner; }
 
 private:
 	CMemoryModule  _memory;
 	CSymbolModule  _symbols;
-	CDecoderModule _decoder;
+	//CDecoderModule _decoder;
 	CScannerModule _scanner;
 };
 
