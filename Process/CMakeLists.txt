@@ -10,6 +10,8 @@ target_sources(Process PRIVATE
     Core/PointerEndpoint.cpp
 )
 
+target_compile_definitions(Process PRIVATE ZYDIS_STATIC_BUILD)
+
 target_sources(Process PRIVATE
     ThirdParty/Zydis/Zydis.c
 )
