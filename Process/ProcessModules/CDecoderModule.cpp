@@ -5,6 +5,8 @@
 
 #include "CDecoderModule.hpp"
 
+#ifdef AZOTH_ENABLE_DECODER
+
 #include "../Types/EProcessArchitecture.hpp"
 #include "../CProcess.hpp"
 
@@ -413,3 +415,5 @@ std::string CDecoderModule::formatInstruction(const Instruction& instr, IAddress
 }
 
 }
+
+#endif

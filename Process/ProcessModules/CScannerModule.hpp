@@ -262,6 +262,8 @@ public:
 
 	Address scanForCodeCave(const MemoryCopy& memCopy, size_t minSize, size_t alignment = 1);
 
+#ifdef AZOTH_ENABLE_DECODER
+
 	/**
 	 * @brief Finds all cross-references to a relative address within a module.
 	 *
@@ -287,6 +289,8 @@ public:
 	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, std::span<const MemoryCopy> memSnap, const ImageSymbol& symbol);
 
 	std::vector<Address> findSymbolCrossRefs(const ProcessImage& module, const MemoryCopy& memCopy, const ImageSymbol& symbol);
+
+#endif
 
 private:
 	CProcess* _backPtr;

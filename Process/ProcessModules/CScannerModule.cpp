@@ -638,6 +638,8 @@ Address CScannerModule::scanForCodeCave(const MemoryCopy& memCopy, size_t minSiz
     return scanForCodeCave(std::span{ &memCopy, 1 }, minSize, alignment);
 }
 
+#ifdef AZOTH_ENABLE_DECODER
+
 std::vector<Address> CScannerModule::findAllCrossRefs(const ProcessImage& module, Address absoluteTargetAddress)
 {
     if (!module.valid() || !((MemoryRange)module).contains(absoluteTargetAddress))
@@ -791,6 +793,8 @@ std::vector<Address> CScannerModule::findSymbolCrossRefs(const ProcessImage& mod
 {
     return findSymbolCrossRefs(module, std::span{ &memCopy, 1 }, symbol);
 }
+
+#endif
 
 
 }

@@ -5,7 +5,12 @@
 
 #pragma once
 
-#include "../ThirdParty/Zydis/Zydis.h"
+#ifdef AZOTH_ENABLE_DECODER
+
+// Todo: Hacky way to prevent file inlining
+#define ZYDIS_PATH "../ThirdParty/Zydis/Zydis.h"
+#include ZYDIS_PATH
+//#include "../ThirdParty/Zydis/Zydis.h"
 #include "../Types/Address.hpp"
 #include "../Types/EProcessArchitecture.hpp"
 #include "../Core/ProcessImage.hpp"
@@ -679,3 +684,5 @@ private:
 
 
 }
+
+#endif
