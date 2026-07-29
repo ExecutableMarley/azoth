@@ -108,6 +108,10 @@ public:
     requires std::is_integral_v<T>
     constexpr Address& operator+=(T offset) noexcept { value += static_cast<value_type>(offset); return *this; }
 
+    template <typename T>
+    requires std::is_integral_v<T>
+    constexpr Address& operator-=(T offset) noexcept { value -= static_cast<value_type>(offset); return *this; }
+
     constexpr value_type operator-(const Address& other) const noexcept { return value - other.value; }
 
     // --- Static Factory ---

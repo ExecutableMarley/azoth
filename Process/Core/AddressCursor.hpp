@@ -111,7 +111,10 @@ public:
      * @return A new AddressCursor moved backward, or Invalid if already invalid.
      */
     AddressCursor sub(uint64_t offset) const {
-		return add(-offset);
+        if (_invalid) return Invalid();
+        AddressCursor next = *this;
+        next._address -= offset;
+        return next;
     }
 
     /**
