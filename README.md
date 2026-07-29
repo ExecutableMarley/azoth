@@ -25,24 +25,39 @@ code quality, portability, and maintainability.
 - Pattern / signature scanning
 - String and value searching
 - Retrieval of loaded process image data
+- Symbol parsing
+
+### System Utilities
+
+- Enumerate and query process information through the `CSystem` API
 
 ### Architecture & Design
 - Fully **OS-agnostic core**
-- Platform-specific functionality abstracted via `IPlatformLink`
-- Default platform implementations (Windows, Linux – WIP)
+- Platform-specific functionality abstracted through `IPlatformLink`
+- Default platform implementations (Windows, Linux)
 - Custom platform backends can be injected or fully replaced
 
 ### In Progress / Planned
-- Decoder (incomplete)
-- Encoder (planned)
 - Thread manipulation
-- Hooking utilities
 
 ## Integration
 
-Azoth can be integrated either via **direct source inclusion** or as a **CMake subproject**.
+Azoth can be integrated in several ways depending on your project.
 
-### Option 1 - Direct Source Integration
+### Option 1 - CMake (Recommended)
+
+```cmake
+add_subdirectory(Process)
+target_link_libraries(MyExecutable PRIVATE Process)
+```
+
+The `Process/` directory contains its own `CMakeLists.txt` and exposes the `Process` target.
+
+## Option 2 — Amalgamated Build
+
+Azoth also provides an **amalgamated distribution** consisting of a single header and source file. Simply add the amalgamated header & source file into your project and compile.
+
+### Option 3 - Direct Source Integration
 
 #### Steps
 
@@ -53,19 +68,6 @@ Azoth can be integrated either via **direct source inclusion** or as a **CMake s
 ```cpp
 #include "Process/CProcess.hpp"
 ```
-
-### Option 2 - CMake
-
-If using CMake, Azoth can be added as a subdirectory.
-
-#### Example
-```txt
-add_subdirectory(Process)
-target_link_libraries(MyExecutable PRIVATE Process)
-```
-
-The **Process/** folder contains its own **CMakeLists.txt** which defines the logical Process library target.
-
 
 
 ## Example Usage
@@ -170,7 +172,18 @@ int main()
 
 ## Status
 
-TODO
+- ✔ Windows backend
+- ✔ Linux backend
+- ✔ Memory manipulation
+- ✔ Pattern scanning
+- ✔ Symbol parsing
+- ✔ Process enumeration
+
+Development is currently focused on:
+
+- Thread functionality
+- API refinements
+- Additional quality-of-life utilities
 
 ## Disclaimer
 
