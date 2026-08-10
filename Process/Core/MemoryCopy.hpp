@@ -12,6 +12,7 @@
 #include "../Types/Address.hpp"
 #include "../Types/MemoryRange.hpp"
 #include "PointerEndpoint.hpp"
+#include "AddressCursor.hpp"
 
 namespace Azoth
 {
@@ -267,6 +268,9 @@ public:
      * The returned range uses half-open interval semantics: [baseAddress, baseAddress + size).
      */
     operator MemoryRange() const { return MemoryRange(_chainAddr, _chainAddr + _size); };
+
+    //Todo: Address cursor should get a view to the buffer
+    AddressCursor cursor() const { return AddressCursor(_chainAddr.get(), _memory);}
 
 private:
 	CMemoryModule*  _memory;
