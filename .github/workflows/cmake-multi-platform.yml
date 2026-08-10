@@ -2,9 +2,6 @@
 # See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: CMake on multiple platforms
 
-permissions:
-  contents: write # to deploy to gh-pages
-
 on:
   push:
     branches: [ "main", "staging" ]
@@ -80,28 +77,3 @@ jobs:
         ctest --build-config ${{ matrix.build_type }} 
         --output-on-failure 
         --rerun-failed
-  docs:
-    name: Build and deploy Doxygen documentation
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Doxygen & Graphviz
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y doxygen graphviz
-
-      - name: Build Doxygen documentation
-        run: doxygen Doxyfile # docs/html/ 
-
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: ./docs/html
-          # optional: user_name: 'github-actions[bot]'
-          # optional: user_email: 'github-actions[bot]@users.noreply.github.com'
