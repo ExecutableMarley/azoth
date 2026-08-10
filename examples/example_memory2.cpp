@@ -27,7 +27,6 @@ int main()
 
     if (!remoteAddress)
     {
-        //std::cerr << "Virtual allocation failed: " << memory.getLastError() << "\n";
         std::cerr << "Virtual allocation failed: " << Error::getLast() << "\n";
     }
     else
