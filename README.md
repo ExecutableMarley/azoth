@@ -53,7 +53,7 @@ target_link_libraries(MyExecutable PRIVATE Process)
 
 The `Process/` directory contains its own `CMakeLists.txt` and exposes the `Process` target.
 
-## Option 2 — Amalgamated Build
+### Option 2 - Amalgamated Build
 
 Azoth also provides an **amalgamated distribution** consisting of a single header and source file. Simply add the amalgamated header & source file into your project and compile.
 

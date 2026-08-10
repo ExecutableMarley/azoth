@@ -453,6 +453,10 @@ public:
      //Complex list of different continuous regions
      std::vector<MemoryCopy> getMemorySnapshot(const MemoryRange& memRange, const MemoryRegionFilter& filter = {});
 
+     AddressCursor cursor(Address addr)
+     {
+          return AddressCursor(addr, this);
+     }
 
 private:
     struct CodeRestorePoint

@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace Azoth
 {
@@ -66,7 +67,7 @@ public:
     AddressCursor(Address addr, const CMemoryModule* mem = nullptr)
         : _address(addr), _invalid(addr == 0), _memory(mem) {}
 
-        /**
+    /**
      * @brief Constructs a cursor with an associated local memory cache.
      * @param addr Target address in the remote address space.
      * @param buf Shared pointer holding the locally cached byte window.
@@ -169,6 +170,19 @@ public:
         AddressCursor next = *this;
         next._address = resolvedAddr;
         return next;
+    }
+
+    /**
+     * @brief Reads a trivially copyable value of type T from the target address.
+     * @tparam T Type to read (must be trivially copyable).
+     * @param offset Offset from current address where the read occurs.
+     * @return An optional containing the read value, or std::nullopt on failure.
+     */
+    template <typename T> requires std::is_trivially_copyable_v<T>
+    std::optional<T> read(uint64_t offset = 0) const {
+        T val{};
+        if (!readBytes(_address + offset, &val, sizeof(T))) return std::nullopt;
+        return std::optional<T>(val);
     }
 };
 
