@@ -1,5 +1,5 @@
-# Sample workflow for building and deploying a Jekyll site to GitHub Pages
-name: Deploy Jekyll with GitHub Pages dependencies preinstalled
+# orkflow for building and deploying a doxygen site to GitHub Pages
+name: Create and Deploy Doxygen with GitHub Pages
 
 on:
   # Runs on pushes targeting the default branch
@@ -36,7 +36,7 @@ jobs:
         run: doxygen Doxyfile
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        # expects Doxyfile to create ./docs/html (adjust path as needed)
+        # expects Doxyfile to create ./docs/html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
