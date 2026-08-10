@@ -1,0 +1,7 @@
+var searchData=
+[
+  ['valid_0',['valid',['../classAzoth_1_1MemoryBlock.html#a615f57823da8137d515bdcf97d408a4f',1,'Azoth::MemoryBlock::valid()'],['../classAzoth_1_1MemoryCopy.html#ac88f04fa4f8e2492ec84785e94b2f135',1,'Azoth::MemoryCopy::valid()'],['../structAzoth_1_1MemoryRegion.html#a4457eac8f16ef7ca51021ff9e71e0267',1,'Azoth::MemoryRegion::valid()'],['../classAzoth_1_1PointerEndpoint.html#a2359cdd1439c8c2612276936dfb73633',1,'Azoth::PointerEndpoint::valid()'],['../classAzoth_1_1ProcessImage.html#a882afd13c0dae21f34c40da1565c0739',1,'Azoth::ProcessImage::valid()'],['../classAzoth_1_1ImageSymbol.html#ac7ae78ee377beaa6277f7bc2a36282cd',1,'Azoth::ImageSymbol::valid()'],['../classAzoth_1_1MemoryRange.html#a2d9b7b3b6ec04f1232704286367cd38d',1,'Azoth::MemoryRange::valid()']]],
+  ['virtualallocate_1',['virtualallocate',['../classAzoth_1_1CMemoryModule.html#ae339e070a96aa870428164a8ec1919ca',1,'Azoth::CMemoryModule::virtualAllocate(Address addr, size_t size, EMemoryProtection protection=EMemoryProtection::RWX)'],['../classAzoth_1_1CMemoryModule.html#a7bdab5943b61d87828f0726d19afceb4',1,'Azoth::CMemoryModule::virtualAllocate(size_t size, EMemoryProtection protection=EMemoryProtection::RWX)']]],
+  ['virtualfree_2',['virtualFree',['../classAzoth_1_1CMemoryModule.html#a899a0687f798ca51d8ba6432de594e7c',1,'Azoth::CMemoryModule']]],
+  ['virtualprotect_3',['virtualProtect',['../classAzoth_1_1CMemoryModule.html#a5a2919ad2c3f60cf5751bba4ef049daa',1,'Azoth::CMemoryModule']]]
+];
